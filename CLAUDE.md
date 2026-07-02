@@ -68,6 +68,8 @@ FEST e CAST têm rotas hardcoded em `dev-server.js`. Clientes dinâmicos (Sunny 
 | `artes-cast.json` | Banco de artes CAST (append-only) |
 | `artes-sunny.json` | Banco de artes Sunny Systems (append-only) |
 | `artes.json` | Banco de artes FEST (append-only, dono: SuperAgent) |
+| `_scripts/utils/agendador.js` | Publicação agendada — verifica `publicar_em` nos bancos a cada 60s (roda no dev-server) |
+| `_scripts/utils/atomic-write.js` | `atomicWriteFileSync` — escrita temp+rename para bancos JSON (usar em todo write de banco) |
 | `assets/logo-sunny.png` | Logo Sunny Systems — versão branca (sol âmbar + texto branco) para fundo escuro |
 
 ---
@@ -179,6 +181,16 @@ GET  /artes/sunny-*/arte.html               → editor dinâmico
 ```
 
 Mesmo padrão se aplica a qualquer cliente em `_clients.json` substituindo `sunnysystems` pelo slug.
+
+---
+
+## Rotas globais
+
+```
+GET  /api/search?q=texto                 → busca em todos os bancos artes-*.json (cliente, slug, headline, tipo, thumb)
+```
+
+**Publicação agendada:** `POST /api/{cast|slug}/arte/salvar` aceita `{ slug, publicar_em: ISO|null }` (sem `state`). O agendador (`utils/agendador.js`, intervalo 60s no dev-server) publica automaticamente quando a data chega e invalida os caches. Toggle manual: `{ slug, publicado: bool }`.
 
 ---
 

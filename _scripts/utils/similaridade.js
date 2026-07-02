@@ -53,8 +53,10 @@ async function marcarSimilares(propostas, artes, getEmbeddingFn, arteEmbeddingsP
     if (!pText) continue;
 
     let pEmb;
-    try { pEmb = await getEmbeddingFn(pText); }
-    catch { continue; }
+    try {
+      const result = await getEmbeddingFn([pText]);
+      pEmb = Array.isArray(result[0]) ? result[0] : result;
+    } catch { continue; }
 
     for (let i = 0; i < arteEmbeddings.length; i++) {
       const sim = cosineSimilarity(pEmb, arteEmbeddings[i]);

@@ -609,6 +609,7 @@ const {
 
 // ── Clientes dinâmicos (_clients.json) ─────────────────────────────
 const { loadClients, dispatchClient } = require('./utils/client-router.js');
+const { iniciarAgendador } = require('./utils/agendador.js');
 loadClients();
 fs.watch(path.join(ROOT, '_clients.json'), { persistent: false }, () => {
   log.info('_clients.json alterado — recarregando clientes...');
@@ -658,6 +659,41 @@ const server = http.createServer((req, res) => {
     } catch (e) {
       return json(res, 500, { ok: false, erro: e.message });
     }
+  }
+
+  // ── Busca global entre clientes ─────────────────────────────────
+  if (req.method === 'GET' && urlPath === '/api/search') {
+    const q = (url.searchParams.get('q') || '').toLowerCase().trim();
+    if (!q || q.length < 2) return json(res, 400, { ok: false, erro: 'query muito curta' });
+
+    let dinamicos = [];
+    try {
+      dinamicos = JSON.parse(fs.readFileSync(path.join(ROOT, '_clients.json'), 'utf8'))
+        .filter(c => c.ativo)
+        .map(c => ({ slug: c.slug, banco: path.join(ROOT, `artes-${c.slug}.json`) }));
+    } catch { /* sem clientes dinâmicos */ }
+
+    const clientes = [
+      { slug: 'fest', banco: path.join(ROOT, 'artes.json') },
+      { slug: 'cast', banco: path.join(ROOT, 'artes-cast.json') },
+      ...dinamicos,
+    ];
+
+    const resultados = [];
+    for (const { slug, banco } of clientes) {
+      if (!fs.existsSync(banco)) continue;
+      try {
+        const artes = JSON.parse(fs.readFileSync(banco, 'utf8'));
+        for (const a of artes) {
+          const texto = [(a.headline || ''), (a.subtitulo || ''), (a.tema || '')].join(' ').toLowerCase();
+          if (texto.includes(q)) {
+            resultados.push({ cliente: slug, slug: a.slug, headline: a.headline, subtitulo: a.subtitulo, tipo: a.tipo, thumb: `/artes/${a.slug}/thumb.png` });
+          }
+        }
+      } catch { /* banco corrompido ou ausente */ }
+    }
+
+    return json(res, 200, { ok: true, total: resultados.length, resultados });
   }
 
   // ── Clientes dinâmicos (/api/{slug}/*, /{slug}/, /artes/{slug}-*/) ──────────
@@ -719,4 +755,6 @@ const server = http.createServer((req, res) => {
 server.listen(PORT, HOST, () => {
   const local = ['1', 'true', 'yes'].includes(String(process.env.LOCAL_MODE || '').toLowerCase());
   log.info(`CybersecFEST Dev Server — http://${HOST}:${PORT}/ — modo: ${local ? 'LOCAL' : 'REMOTO'}`);
+  iniciarAgendador(() => { invalidateArtes(); invalidateArtesCast(); });
+  log.info('Agendador de publicação ativo (verifica publicar_em a cada 60s)');
 });

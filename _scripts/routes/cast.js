@@ -12,6 +12,7 @@ module.exports = function setupCastRoutes({ ROOT, ARTES_TTL, setBusy, clearBusy,
   const { wrapWithEditor }        = require('../utils/editor-wrap.js');
   const { validateLayout }        = require('../utils/imagem-prompt.js');
   const { imgVersDir, readImgVersoes, writeImgVersoes, saveImgVersion } = require('../utils/img-versoes.js');
+  const { atomicWriteFileSync } = require('../utils/atomic-write.js');
 
   // Lazy: evita falha de inicialização em testes sem API keys
   function getGenerateImage() { return require('../utils/llm.js').generateImage; }
@@ -34,7 +35,7 @@ module.exports = function setupCastRoutes({ ROOT, ARTES_TTL, setBusy, clearBusy,
   }
 
   function writeArtesCast(artes) {
-    fs.writeFileSync(CAST_ARTES_FILE, JSON.stringify(artes, null, 2) + '\n');
+    atomicWriteFileSync(CAST_ARTES_FILE, JSON.stringify(artes, null, 2) + '\n');
     castArtesCache   = artes;
     castArtesCacheAt = Date.now();
   }
@@ -163,7 +164,12 @@ module.exports = function setupCastRoutes({ ROOT, ARTES_TTL, setBusy, clearBusy,
 
       const slug  = String(payload.slug || '').trim();
       const state = payload.state;
-      if (!slug || !state || typeof state !== 'object') return json(res, 400, { ok: false, erro: 'slug e state são obrigatórios' });
+      const hasState      = state && typeof state === 'object';
+      const hasPublicado  = typeof payload.publicado === 'boolean';
+      const hasPublicarEm = payload.publicar_em !== undefined;
+      if (!slug || (!hasState && !hasPublicado && !hasPublicarEm)) {
+        return json(res, 400, { ok: false, erro: 'slug e (state, publicado ou publicar_em) são obrigatórios' });
+      }
       if (!/^[\w-]+$/.test(slug)) return json(res, 400, { ok: false, erro: 'slug inválido' });
       const subtitleRaw      = typeof payload.subtitle === 'string' ? payload.subtitle : null;
       const headlineRaw      = typeof payload.headline === 'string' ? payload.headline : null;
@@ -174,21 +180,30 @@ module.exports = function setupCastRoutes({ ROOT, ARTES_TTL, setBusy, clearBusy,
       const thumbPath = path.join(slugDir, 'thumb.png');
       if (!fs.existsSync(fundoPath)) return json(res, 404, { ok: false, erro: `Arte não encontrada: ${slug}` });
 
-      writeCastEditorState(slug, state);
+      if (hasState) writeCastEditorState(slug, state);
 
-      if (subtitleRaw !== null || headlineRaw !== null || palavrasAzuisRaw !== null) {
+      if (subtitleRaw !== null || headlineRaw !== null || palavrasAzuisRaw !== null || hasPublicado || hasPublicarEm) {
         const artes = readArtesCast();
         const idx   = artes.findIndex(a => a.slug === slug);
         if (idx >= 0) {
           if (subtitleRaw !== null)      artes[idx].subtitulo      = subtitleRaw;
           if (headlineRaw !== null)      artes[idx].headline       = headlineRaw;
           if (palavrasAzuisRaw !== null) artes[idx].palavras_azuis = palavrasAzuisRaw;
+          if (hasPublicado) {
+            artes[idx].publicado    = payload.publicado;
+            artes[idx].publicado_em = payload.publicado ? new Date().toISOString() : null;
+          }
+          if (hasPublicarEm) {
+            // aceita ISO string ou null para cancelar agendamento
+            artes[idx].publicar_em = payload.publicar_em || null;
+            if (payload.publicar_em) log.info(`📅 Arte ${slug} agendada para ${payload.publicar_em}`);
+          }
           writeArtesCast(artes);
         }
       }
 
       let thumbOk = false;
-      try {
+      if (hasState) try {
         const artes = readArtesCast();
         const arte  = artes.find(a => a.slug === slug);
         if (arte) {

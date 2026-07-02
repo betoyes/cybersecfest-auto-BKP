@@ -309,3 +309,53 @@ describe('galeria-templates manifest', () => {
     }
   });
 });
+
+describe('atomic-write.js', () => {
+  const os = require('os');
+  const { atomicWriteFileSync } = require('../utils/atomic-write.js');
+
+  it('escreve conteúdo, sobrescreve e não deixa arquivo temporário', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'atomic-'));
+    const f = path.join(dir, 'dados.json');
+    atomicWriteFileSync(f, '{"ok":true}');
+    assert.equal(fs.readFileSync(f, 'utf8'), '{"ok":true}');
+    atomicWriteFileSync(f, '{"ok":false}');
+    assert.equal(fs.readFileSync(f, 'utf8'), '{"ok":false}');
+    assert.deepEqual(fs.readdirSync(dir), ['dados.json']);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+});
+
+describe('agendador.js', () => {
+  const os = require('os');
+  const { verificarAgendamentos } = require('../utils/agendador.js');
+
+  it('publica apenas artes com publicar_em no passado', () => {
+    const dir   = fs.mkdtempSync(path.join(os.tmpdir(), 'agendador-'));
+    const banco = path.join(dir, 'artes-test.json');
+    fs.writeFileSync(banco, JSON.stringify([
+      { slug: 'a1', publicar_em: '2020-01-01T00:00:00.000Z' },
+      { slug: 'a2', publicar_em: '2099-01-01T00:00:00.000Z' },
+      { slug: 'a3', publicado: true, publicar_em: null },
+    ]));
+
+    const n = verificarAgendamentos([banco]);
+
+    assert.equal(n, 1);
+    const artes = JSON.parse(fs.readFileSync(banco, 'utf8'));
+    assert.equal(artes[0].publicado, true);
+    assert.ok(artes[0].publicado_em, 'publicado_em deve ser preenchido');
+    assert.equal(artes[0].publicar_em, null);
+    assert.ok(!artes[1].publicado, 'agendamento futuro não deve publicar');
+    assert.equal(artes[1].publicar_em, '2099-01-01T00:00:00.000Z');
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('ignora banco inexistente ou corrompido sem lançar', () => {
+    const dir   = fs.mkdtempSync(path.join(os.tmpdir(), 'agendador-'));
+    const ruim  = path.join(dir, 'artes-ruim.json');
+    fs.writeFileSync(ruim, '{corrompido');
+    assert.equal(verificarAgendamentos([ruim, path.join(dir, 'nao-existe.json')]), 0);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+});

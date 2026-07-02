@@ -4,6 +4,7 @@
 const fs   = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { atomicWriteFileSync } = require('./atomic-write.js');
 
 const REPO_ROOT = path.resolve(__dirname, '../..');
 const REPO      = process.env.GITHUB_REPO || 'betoyes/cybersecfest-auto';
@@ -27,7 +28,7 @@ async function getFile(relPath) {
 async function putFile(relPath, content, message) {
   const p = abs(relPath);
   fs.mkdirSync(path.dirname(p), { recursive: true });
-  fs.writeFileSync(p, content, 'utf8');
+  atomicWriteFileSync(p, content, 'utf8');
   console.log(`💾 local: ${relPath}`);
   return { sha: fileSha(content), message };
 }
@@ -35,7 +36,7 @@ async function putFile(relPath, content, message) {
 async function putBinary(relPath, buffer, message) {
   const p = abs(relPath);
   fs.mkdirSync(path.dirname(p), { recursive: true });
-  fs.writeFileSync(p, buffer);
+  atomicWriteFileSync(p, buffer);
   console.log(`💾 local: ${relPath} (${buffer.length} bytes)`);
   return { sha: fileSha(buffer), message };
 }

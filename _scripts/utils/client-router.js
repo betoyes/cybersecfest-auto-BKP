@@ -5,6 +5,7 @@ const fs   = require('fs');
 const { renderLayoutForBrand } = require('./brand-renderer');
 const { wrapWithEditor }       = require('./editor-wrap');
 const { generateText }         = require('./llm');
+const { atomicWriteFileSync }  = require('./atomic-write.js');
 
 const ROOT      = path.join(__dirname, '../..');
 const ARTES_TTL = 10_000;
@@ -58,6 +59,7 @@ class ClientRouter {
     this._lote     = null;
     this._embCache = null;
     this._EMB_TTL  = 60_000;
+    this._imgLock  = false;
 
     try {
       const sp = require(path.join(ROOT, '_agents', `${slug}-estrategista`, 'system-prompt.js'));
@@ -89,7 +91,7 @@ class ClientRouter {
   }
 
   writeArtes(artes) {
-    fs.writeFileSync(this.dbPath, JSON.stringify(artes, null, 2) + '\n');
+    atomicWriteFileSync(this.dbPath, JSON.stringify(artes, null, 2) + '\n');
     this._cache    = artes;
     this._cacheAt  = Date.now();
     this._embCache = null;
@@ -159,6 +161,10 @@ class ClientRouter {
     if (!valid.ok) {
       console.warn(`⚠️ Imagem rejeitada (${valid.motivo}) — retentando...`);
       buf = await generateImage(prompt, opts);
+      const valid2 = await validateImageQuality(buf);
+      if (!valid2.ok) {
+        console.warn(`⚠️ Retry também rejeitado (${valid2.motivo}) — usando mesmo assim`);
+      }
     }
     return buf;
   }
@@ -285,11 +291,12 @@ class ClientRouter {
       const arteSlug = String(payload?.slug  || '').trim();
       const state    = payload?.state;
 
-      const hasState     = state && typeof state === 'object';
-      const hasPublicado = typeof payload?.publicado === 'boolean';
+      const hasState      = state && typeof state === 'object';
+      const hasPublicado  = typeof payload?.publicado === 'boolean';
+      const hasPublicarEm = payload?.publicar_em !== undefined;
 
-      if (!arteSlug || (!hasState && !hasPublicado)) {
-        return json(res, 400, { ok: false, erro: 'slug e (state ou publicado) são obrigatórios' });
+      if (!arteSlug || (!hasState && !hasPublicado && !hasPublicarEm)) {
+        return json(res, 400, { ok: false, erro: 'slug e (state, publicado ou publicar_em) são obrigatórios' });
       }
 
       const fundoPath = path.join(ROOT, 'artes', arteSlug, 'fundo.png');
@@ -301,7 +308,7 @@ class ClientRouter {
       const headlineRaw  = typeof payload.headline       === 'string' ? payload.headline       : null;
       const palavrasRaw  = typeof payload.palavras_azuis === 'string' ? payload.palavras_azuis : null;
 
-      if (subtitleRaw !== null || headlineRaw !== null || palavrasRaw !== null || hasPublicado) {
+      if (subtitleRaw !== null || headlineRaw !== null || palavrasRaw !== null || hasPublicado || hasPublicarEm) {
         const artes = this.readArtes();
         const idx   = artes.findIndex(a => a.slug === arteSlug);
         if (idx >= 0) {
@@ -311,6 +318,13 @@ class ClientRouter {
           if (hasPublicado) {
             artes[idx].publicado    = payload.publicado;
             artes[idx].publicado_em = payload.publicado ? new Date().toISOString() : null;
+          }
+          if (hasPublicarEm) {
+            // aceita ISO string ou null para cancelar agendamento
+            artes[idx].publicar_em = payload.publicar_em || null;
+            if (payload.publicar_em) {
+              console.log(`📅 Arte ${arteSlug} agendada para ${payload.publicar_em}`);
+            }
           }
           this.writeArtes(artes);
         }
@@ -410,6 +424,10 @@ class ClientRouter {
   }
 
   async handleMudarImagem(req, res) {
+    if (this._imgLock) {
+      return json(res, 429, { ok: false, erro: 'Geração de imagem em andamento. Aguarde.' });
+    }
+    this._imgLock = true;
     try {
       const payload   = await readBody(req);
       const arteSlug  = String(payload?.slug      || '').trim();
@@ -456,6 +474,8 @@ class ClientRouter {
       }
     } catch (e) {
       json(res, 500, { ok: false, erro: e.message });
+    } finally {
+      this._imgLock = false;
     }
   }
 
@@ -561,6 +581,10 @@ Regras:
   }
 
   async handleAprovarProposta(req, res) {
+    if (this._imgLock) {
+      return json(res, 429, { ok: false, erro: 'Geração de imagem em andamento. Aguarde.' });
+    }
+    this._imgLock = true;
     try {
       if (!this._lote) return json(res, 400, { ok: false, erro: 'sem propostas pendentes' });
       const body     = await readBody(req);
@@ -612,6 +636,8 @@ Regras:
       }
     } catch (e) {
       json(res, 500, { ok: false, erro: e.message });
+    } finally {
+      this._imgLock = false;
     }
   }
 

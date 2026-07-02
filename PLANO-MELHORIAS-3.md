@@ -1,6 +1,12 @@
 # PLANO-MELHORIAS-3 — Bugs, riscos e melhorias detectados por análise de código
 
-**Status:** Pendente  
+**Status:** ✅ Concluído em 01 jul 2026 (49 testes passando)
+
+> **Notas de execução:**
+> - Fase 5 **pulada** — o código já persiste `subtitle` sem `state` desde o Plano-2; o aviso proposto seria enganoso.
+> - Fase 6 estendida: `handleCastSalvarArte` (routes/cast.js) exigia `state` e quebrava o toggle "Marcar publicada" do CAST — corrigido junto com o suporte a `publicar_em`. Job em `_scripts/utils/agendador.js` (roda no dev-server, 60s, invalida caches).
+> - Extra: writes atômicos (temp + rename) em todos os bancos JSON via `_scripts/utils/atomic-write.js`.
+
 **Pré-requisito:** Ler `CLAUDE.md` antes de executar. Servidor em `_scripts/` (`npm run dev`, porta 8765).  
 **Testes:** `cd _scripts && npm test` — 46 testes devem passar antes e depois de cada fase.  
 **Commit:** Um commit por fase ou um commit agregado ao final, a critério do executor.

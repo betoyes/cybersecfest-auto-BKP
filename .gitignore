@@ -4,3 +4,17 @@ node_modules/
 _scripts/node_modules/
 _scripts/utils/.asset-cache.json
 artes/**/motion/work-*/
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Dados operacionais (gerados em runtime, não devem ser versionados)
+propostas-cast.json
+
+# Ferramentas locais
+.serena/
+
+# Mídia local não versionada (fora do escopo do site)
+Cybersec.CAST-Website/
+Midia-Kit-Cybersec.FEST-export/

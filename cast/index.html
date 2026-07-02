@@ -701,6 +701,11 @@ function openModal(slug, arte) {
     <button class="btn-arte btn-arte-secondary" onclick="duplicarArte('${slug}', this)">Duplicar</button>
     <button type="button" class="btn-arte ${arte.publicado ? 'btn-arte-primary' : 'btn-arte-secondary'}" id="btn-publicado-arte" onclick="togglePublicado('${slug}')">${arte.publicado ? '✓ Publicada' : 'Marcar publicada'}</button>
     ${canDelete ? `<button type="button" class="btn-arte btn-arte-danger" id="btn-delete-arte" onclick="deletarArte('${slug}')">🗑 Excluir</button>` : ''}
+    <div id="modal-agendar-wrap" style="width:100%;margin-top:6px;font-size:12px;color:#888;">
+      Agendar: <input type="datetime-local" id="modal-publicar-em" value="${arte.publicar_em ? new Date(arte.publicar_em).toLocaleString('sv-SE').slice(0, 16).replace(' ', 'T') : ''}"
+        style="background:transparent;border:1px solid #444;color:inherit;font-size:12px;padding:2px 4px;border-radius:4px;">
+      <button type="button" onclick="salvarAgendamento()" style="font-size:11px;margin-left:4px;background:transparent;border:1px solid #444;color:inherit;padding:2px 8px;border-radius:4px;cursor:pointer;">Salvar</button>
+    </div>
   `;
   const metaEl = document.getElementById('modal-meta');
   const rows = [];
@@ -1576,6 +1581,20 @@ async function togglePublicado(slug) {
     renderGallery();
     openModalBySlug(slug);
   } catch (e) { alert('Erro ao marcar: ' + e.message); }
+}
+
+async function salvarAgendamento() {
+  if (!modalSlug) return;
+  const val = document.getElementById('modal-publicar-em')?.value;
+  // datetime-local retorna "2026-07-01T10:00" (hora local) — converter para ISO UTC
+  const iso = val ? new Date(val).toISOString() : null;
+  try {
+    const r = await apiFetch(`${API}/arte/salvar`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slug: modalSlug, publicar_em: iso }) });
+    if (!r.ok) throw new Error(r.erro || 'Falha');
+    const arte = allArtes.find(a => a.slug === modalSlug);
+    if (arte) arte.publicar_em = iso;
+    alert(iso ? `Agendado para ${new Date(iso).toLocaleString('pt-BR')}` : 'Agendamento cancelado');
+  } catch (e) { alert('Erro ao agendar: ' + e.message); }
 }
 
 function initGalleryFilters() {
