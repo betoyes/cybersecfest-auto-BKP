@@ -486,15 +486,15 @@ class ClientRouter {
 
   async handleExportarZip(_req, res) {
     try {
-      const archiver = require('archiver');
-      const artes    = this.readArtes();
+      const { criarZipStream } = require('./zip.js');
+      const artes   = this.readArtes();
+      const archive = criarZipStream();
 
       res.writeHead(200, {
         'Content-Type':        'application/zip',
         'Content-Disposition': `attachment; filename="${this.slug}-artes.zip"`,
       });
 
-      const archive = archiver('zip', { zlib: { level: 6 } });
       archive.pipe(res);
 
       for (const arte of artes) {
@@ -511,6 +511,131 @@ class ClientRouter {
       await archive.finalize();
     } catch (e) {
       if (!res.headersSent) json(res, 500, { ok: false, erro: e.message });
+    }
+  }
+
+  // GET /artes/{slug}/slide-N.html — render simples de um slide do carrossel
+  // (mesmo layout e fundo da capa, texto do slide no lugar do headline)
+  handleSlideHtml(_req, res, arteSlug, n) {
+    try {
+      const arte  = this.readArtes().find(a => a.slug === arteSlug);
+      const slide = arte?.slides?.[n - 1];
+      if (!arte || !slide) { res.writeHead(404); return res.end('Slide não encontrado'); }
+
+      const fundoPath = path.join(ROOT, 'artes', arteSlug, 'fundo.png');
+      const imageB64  = fs.existsSync(fundoPath) ? fs.readFileSync(fundoPath).toString('base64') : '';
+
+      const html = renderLayoutForBrand(arteSlug, {
+        layout:          (arte.layout || 'C').toUpperCase(),
+        imageBase64:     imageB64,
+        headline:        slide.titulo || '',
+        subtitulo:       slide.texto || '',
+        palavrasAzuis:   '',
+        nomePalestrante: '',
+        cargoEmpresa:    '',
+      }, this.brand);
+
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      // #the-canvas: alvo do screenshot do export (gerarThumbComposto)
+      res.end(html.replace('class="canvas"', 'id="the-canvas" class="canvas"'));
+    } catch (e) {
+      res.writeHead(500); res.end(`Erro: ${e.message}`);
+    }
+  }
+
+  // GET /api/{slug}/arte/carrossel.zip?slug= — PNGs de capa + slides + legenda
+  async handleCarrosselZip(req, res) {
+    const sp       = new URL(req.url || '', 'http://localhost').searchParams;
+    const arteSlug = String(sp.get('slug') || '').trim();
+    if (!/^[\w-]+$/.test(arteSlug)) return json(res, 400, { ok: false, erro: 'slug inválido' });
+
+    const arte = this.readArtes().find(a => a.slug === arteSlug);
+    if (!arte) return json(res, 404, { ok: false, erro: 'Arte não encontrada' });
+    if (!arte.slides?.length) return json(res, 404, { ok: false, erro: 'Arte não tem slides de carrossel' });
+
+    if (!this._setBusy(`carrossel-${arteSlug}`)) return json(res, 409, { ok: false, erro: 'Export em andamento' });
+    let browser = null;
+    try {
+      const { launchBrowser } = require('./puppeteer-browser.js');
+      const porta  = Number(process.env.PORT || 8765);
+      const outDir = path.join(ROOT, 'artes', arteSlug, 'carrossel');
+      fs.mkdirSync(outDir, { recursive: true });
+
+      const arquivos = [];
+      const capa = path.join(ROOT, 'artes', arteSlug, 'thumb.png');
+      if (fs.existsSync(capa)) arquivos.push({ path: capa, name: '01-capa.png' });
+
+      // um único browser para todos os slides — lançar Chrome por slide é lento
+      browser = await launchBrowser();
+      const page = await browser.newPage();
+      await page.setViewport({ width: 620, height: 780, deviceScaleFactor: 2 });
+
+      for (let i = 1; i <= arte.slides.length; i++) {
+        const out = path.join(outDir, `slide-${i}.png`);
+        await page.goto(`http://127.0.0.1:${porta}/artes/${arteSlug}/slide-${i}.html`, { waitUntil: 'networkidle0', timeout: 60000 });
+        await page.waitForSelector('#the-canvas', { timeout: 15000 });
+        await page.evaluate(() => document.fonts.ready);
+        const canvas = await page.$('#the-canvas');
+        await canvas.screenshot({ path: out, type: 'jpeg', quality: 88 });
+        arquivos.push({ path: out, name: `${String(i + 1).padStart(2, '0')}-slide.png` });
+      }
+      await browser.close();
+      browser = null;
+
+      const { criarZipStream } = require('./zip.js');
+      const archive = criarZipStream();
+      res.writeHead(200, {
+        'Content-Type':        'application/zip',
+        'Content-Disposition': `attachment; filename="${arteSlug}-carrossel.zip"`,
+      });
+      archive.pipe(res);
+      for (const a of arquivos) archive.file(a.path, { name: a.name });
+      if (arte.legenda) archive.append(arte.legenda, { name: 'legenda.txt' });
+      await archive.finalize();
+    } catch (e) {
+      if (!res.headersSent) json(res, 500, { ok: false, erro: e.message });
+    } finally {
+      if (browser) await browser.close().catch(() => {});
+      this._clearBusy(`carrossel-${arteSlug}`);
+    }
+  }
+
+  // Mesmo baralho da aprovação — calculado na criação do lote para que o
+  // preview das propostas mostre exatamente o layout que a aprovação usará.
+  _layoutDoBaralho(tipo) {
+    const brandMod  = (() => { try { return require(path.join(ROOT, '_brands', this.slug, 'brand.js')); } catch { return {}; } })();
+    const pool      = (brandMod.rotacaoLayouts && (brandMod.rotacaoLayouts[tipo] || brandMod.rotacaoLayouts.default)) || GENERIC_LAYOUT_POOL;
+    const historico = this.readArtes().map(a => ({ tipo_post: a.tipo, layout: a.layout }));
+    const { layout } = pickNextLayout(tipo, {
+      rotacaoLayouts: { [tipo]: pool },
+      historicoRecente: historico,
+    });
+    return layout;
+  }
+
+  // GET /api/{slug}/propostas/preview?i=N — render simples (sem editor) da
+  // proposta pendente com a marca do cliente e o layout previsto do baralho.
+  handlePropostaPreview(req, res) {
+    try {
+      const sp = new URL(req.url || '', 'http://localhost').searchParams;
+      const i  = parseInt(sp.get('i'), 10) || 0;
+      const proposta = this._lote?.propostas?.[i];
+      if (!proposta) { res.writeHead(404); return res.end('Sem propostas pendentes'); }
+
+      const html = renderLayoutForBrand(`preview-${this.slug}`, {
+        layout:          this._lote.layoutPrevisto || 'C',
+        imageBase64:     '',
+        headline:        proposta.headline || '',
+        subtitulo:       proposta.subtitulo || '',
+        palavrasAzuis:   proposta.palavras_azuis || '',
+        nomePalestrante: '',
+        cargoEmpresa:    '',
+      }, this.brand);
+
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      res.end(html);
+    } catch (e) {
+      res.writeHead(500); res.end(`Erro: ${e.message}`);
     }
   }
 
@@ -541,6 +666,18 @@ class ClientRouter {
 
       const systemPrompt = this.getSystemPromptFn(tipo) + feedbackBloco;
 
+      // "carrossel" no briefing ativa o modo multi-slide (capa + slides de conteúdo)
+      const querCarrossel = /carross?el|carousel/i.test(tema);
+      const campoSlides = querCarrossel
+        ? `,
+      "slides": [
+        { "titulo": "Título curto do slide", "texto": "Texto de apoio do slide (1-2 frases)" }
+      ]`
+        : '';
+      const regraSlides = querCarrossel
+        ? '\n- slides: 3 a 5 slides de conteúdo do carrossel (a capa é o headline — não repita a capa; cada slide desenvolve um ponto)'
+        : '';
+
       const userPrompt = `TEMA: ${tema}
 TIPO DE CONTEÚDO: ${tipo}
 
@@ -553,7 +690,7 @@ Gere 3 propostas de post LinkedIn. Responda APENAS com JSON válido neste format
       "subtitulo": "Complemento curto do headline (1 linha, pode ser vazio)",
       "legenda": "Texto completo do post LinkedIn. Inclua CTA sutil e hashtags ao final.",
       "cena_visual": "Scene description for AI image generation (in English, abstract or conceptual)",
-      "layout": "C"
+      "layout": "C"${campoSlides}
     }
   ]
 }
@@ -563,7 +700,7 @@ Regras:
 - palavras_azuis: 1-3 palavras do headline que ficarão em destaque, em MAIÚSCULAS
 - legenda: 4-8 parágrafos curtos, tom da marca, com hashtags ao final
 - cena_visual: cena ou abstração em inglês para geração de imagem de fundo
-- layout: letra A-G sugerida (A=título grande, C=centralizado, G=minimalista)
+- layout: letra A-G sugerida (A=título grande, C=centralizado, G=minimalista)${regraSlides}
 - Não invente dados. Não mencione produtos sem contexto.`;
 
       const raw = await generateText(userPrompt, systemPrompt, 0.88, 2048);
@@ -582,7 +719,12 @@ Regras:
         propostas = await marcarSimilares(propostas, artesRecentes, getEmbedding, arteEmbs);
       } catch (e) { console.warn('⚠️  Similaridade:', e.message); }
 
-      this._lote = { id: `${this.slug}-${Date.now()}`, tipo, tema, propostas, criadoEm: new Date().toISOString() };
+      let layoutPrevisto = 'C';
+      try { layoutPrevisto = this._layoutDoBaralho(tipo); } catch { /* usa fallback */ }
+
+      this._lote = { id: `${this.slug}-${Date.now()}`, tipo, tema, propostas, layoutPrevisto, criadoEm: new Date().toISOString() };
+
+      try { require('./telegram-bot.js').notificarPropostas(this.slug, this._lote, 'dinamico'); } catch { /* opcional */ }
 
       json(res, 200, { ok: true, modo: 'propostas', lote: this._lote });
     } catch (e) {
@@ -614,13 +756,7 @@ Regras:
       // não manda — só um layout explícito no body (forçado pelo usuário).
       const tipoLote      = this._lote.tipo;
       const layoutForcado = body && /^[A-Q]$/i.test(body.layout || '') ? String(body.layout).toUpperCase() : null;
-      const brandMod      = (() => { try { return require(path.join(ROOT, '_brands', this.slug, 'brand.js')); } catch { return {}; } })();
-      const pool          = (brandMod.rotacaoLayouts && (brandMod.rotacaoLayouts[tipoLote] || brandMod.rotacaoLayouts.default)) || GENERIC_LAYOUT_POOL;
-      const historico     = this.readArtes().map(a => ({ tipo_post: a.tipo, layout: a.layout }));
-      const { layout: layoutDeck } = pickNextLayout(tipoLote, {
-        rotacaoLayouts: { [tipoLote]: pool },
-        historicoRecente: historico,
-      });
+      const layoutDeck    = this._lote.layoutPrevisto || this._layoutDoBaralho(tipoLote);
 
       const arteSlug = `${this.slug}-${Date.now()}`;
       const arte = {
@@ -635,6 +771,14 @@ Regras:
         contexto_visual: contextoVisual,
         criadoEm:        new Date().toISOString(),
       };
+
+      // Carrossel: slides de conteúdo gerados junto com a proposta
+      if (Array.isArray(proposta.slides) && proposta.slides.length) {
+        arte.slides = proposta.slides.slice(0, 6)
+          .map(s => ({ titulo: String(s.titulo || '').trim(), texto: String(s.texto || '').trim() }))
+          .filter(s => s.titulo || s.texto);
+        if (!arte.slides.length) delete arte.slides;
+      }
 
       if (!this._setBusy(arteSlug)) return json(res, 409, { ok: false, erro: 'Geração em andamento' });
 
@@ -730,8 +874,10 @@ function dispatchClient(req, res, urlPath) {
     if (req.method === 'POST' && urlPath === `${base}/arte/imagem/mudar`)    return router.handleMudarImagem(req, res),        true;
     if (req.method === 'POST' && urlPath === `${base}/reaplicar`)            return router.handleReaplicar(req, res),          true;
     if (req.method === 'GET'  && urlPath === `${base}/exportar-zip`)         return router.handleExportarZip(req, res),        true;
+    if (req.method === 'GET'  && urlPath === `${base}/arte/carrossel.zip`)   return router.handleCarrosselZip(req, res),       true;
     if (req.method === 'POST' && urlPath === `${base}/pedido`)               return router.handlePedido(req, res),             true;
     if (req.method === 'GET'  && urlPath === `${base}/propostas`)            return router.handleGetPropostas(req, res),       true;
+    if (req.method === 'GET'  && urlPath === `${base}/propostas/preview`)    return router.handlePropostaPreview(req, res),    true;
     if (req.method === 'POST' && urlPath === `${base}/propostas/aprovar`)    return router.handleAprovarProposta(req, res),    true;
     if (req.method === 'POST' && urlPath === `${base}/propostas/rejeitar`)   return router.handleRejeitarPropostas(req, res),  true;
     if (req.method === 'GET'  && urlPath === `${base}/temas/calendario`)     return router.handleCalendario(req, res),          true;
@@ -759,6 +905,9 @@ function dispatchClient(req, res, urlPath) {
   for (const [slug, router] of CLIENTS_MAP) {
     const m = req.method === 'GET' && urlPath.match(new RegExp(`^/artes/(${slug}-[\\w-]+)/arte\\.html$`));
     if (m) return router.handleArteHtmlDynamic(req, res, m[1]), true;
+
+    const s = req.method === 'GET' && urlPath.match(new RegExp(`^/artes/(${slug}-[\\w-]+)/slide-(\\d+)\\.html$`));
+    if (s) return router.handleSlideHtml(req, res, s[1], parseInt(s[2], 10)), true;
   }
 
   return false;

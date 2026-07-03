@@ -29,16 +29,16 @@ cd _scripts && npm run dev   # porta 8765 — nodemon: reinicia automaticamente 
 /sunnysystems/   →  sunnysystems/index.html  →  galeria Sunny Systems
 /artes/{slug}/   →  arte.html (estático)     →  editor FEST
 /artes/cast-*/   →  arte.html (dinâmico)     →  editor CAST
-/artes/sunny-*/  →  arte.html (dinâmico)     →  editor Sunny Systems
+/artes/sunnysystems-*/ → arte.html (dinâmico)  →  editor Sunny Systems
 ```
 
 ```
-CybersecFEST   →  artes.json          →  fest/index.html          →  /artes/{slug}/
-CybersecCAST   →  artes-cast.json     →  cast/index.html          →  /artes/cast-{slug}/
-Sunny Systems  →  artes-sunny.json    →  sunnysystems/index.html  →  /artes/sunny-{slug}/
+CybersecFEST   →  artes.json               →  fest/index.html          →  /artes/{slug}/
+CybersecCAST   →  artes-cast.json          →  cast/index.html          →  /artes/cast-{slug}/
+Sunny Systems  →  artes-sunnysystems.json  →  sunnysystems/index.html  →  /artes/sunnysystems-{slug}/
 ```
 
-FEST e CAST têm rotas hardcoded em `dev-server.js`. Clientes dinâmicos (Sunny Systems e futuros) usam `_clients.json` + `client-router.js`.
+FEST e CAST têm rotas hardcoded em `dev-server.js`. Clientes dinâmicos (Sunny Systems, DevOps Bootcamp e futuros) usam `_clients.json` + `client-router.js` — banco `artes-{slug}.json` e slugs de arte `{slug}-{timestamp}`.
 
 > **Importante:** `fest/index.html` usa apenas paths absolutos (prefixo `/`). Nunca use paths relativos nesse arquivo — ele está em `/fest/` e não na raiz.
 
@@ -66,7 +66,12 @@ FEST e CAST têm rotas hardcoded em `dev-server.js`. Clientes dinâmicos (Sunny 
 | `_agents/sunnysystems-estrategista/knowledge.js` | Conhecimento da Sunny Systems (produtos, pilares, teses) |
 | `_agents/sunnysystems-estrategista/system-prompt.js` | System prompts por pilar editorial + `getSystemPrompt(tipo)` |
 | `artes-cast.json` | Banco de artes CAST (append-only) |
-| `artes-sunny.json` | Banco de artes Sunny Systems (append-only) |
+| `artes-sunnysystems.json` | Banco de artes Sunny Systems (append-only) |
+| `_scripts/utils/instagram.js` | Publicação real no Instagram (Graph API) — no-op sem `IG_USER_ID`/`IG_ACCESS_TOKEN`/`IG_PUBLIC_BASE_URL` |
+| `_scripts/utils/telegram-bot.js` | Bot bidirecional — envia propostas com botões ✅1/2/3 ❌ e aprova via API local |
+| `_scripts/utils/autopilot.js` | Plano editorial em lote (`plano-editorial.json`) — dispara pedidos quando a data chega |
+| `_scripts/utils/gen-stats.js` | Log JSONL de gerações LLM (custo/latência/falhas) — agregados em `GET /api/stats` |
+| `_scripts/utils/zip.js` | `criarZipStream()` — compat archiver v7/v8 (usar em TODO export ZIP) |
 | `artes.json` | Banco de artes FEST (append-only, dono: SuperAgent) |
 | `_scripts/utils/agendador.js` | Publicação agendada — verifica `publicar_em` nos bancos a cada 60s (roda no dev-server) |
 | `_scripts/utils/atomic-write.js` | `atomicWriteFileSync` — escrita temp+rename para bancos JSON (usar em todo write de banco) |
@@ -148,7 +153,7 @@ Sem pessoas por padrão — `detectPerson()` ativa cenas com pessoa apenas se no
 
 14. **FEST `arte.html` é dinâmico** — `handleFestArteHtmlDynamic` em `routes/cast.js` intercepta `GET /artes/(evento|blog|patrocinador|palestrante)-*/arte.html` antes do `serveStatic`. Mudanças em `editor-wrap.js` ou `editor-v3-script.js` refletem automaticamente, igual ao CAST. Artes sem `fundo.png` (legado) ainda servem o arquivo estático em disco — editar o `arte.html` em disco das dinâmicas não tem efeito.
 
-15. **Multi-cliente dinâmico** — novos clientes são onboardados via `node _scripts/onboarding-cliente.js --briefing briefing.json`. Isso gera `_brands/{slug}/`, `_agents/{slug}-estrategista/`, galeria `{slug}/index.html`, banco `artes-{slug}.json` e registra em `_clients.json`. O `dev-server.js` carrega `_clients.json` no startup via `loadClients()` e despacha todas as rotas do cliente automaticamente via `dispatchClient()` (`_scripts/utils/client-router.js`). Para adicionar um cliente: rodar onboarding → reiniciar servidor.
+15. **Multi-cliente dinâmico** — novos clientes são onboardados via `node _scripts/onboarding-cliente.js --briefing briefing.json`. Isso gera `_brands/{slug}/`, `_agents/{slug}-estrategista/`, galeria `{slug}/index.html`, banco `artes-{slug}.json` e registra em `_clients.json`. O `dev-server.js` carrega `_clients.json` no startup via `loadClients()` e despacha todas as rotas do cliente automaticamente via `dispatchClient()` (`_scripts/utils/client-router.js`). Para adicionar um cliente: rodar onboarding — o `fs.watch` de `_clients.json` recarrega as rotas sem restart.
 
 16. **`brand.js` de clientes dinâmicos usa formato flat** — exporta as propriedades diretamente (`module.exports = { id, name, colors, fonts, ... }`), sem wrapper `{ brand: {...} }`. O `ClientRouter` detecta isso com `brandMod.id && brandMod.colors ? brandMod : null`. Se o brand não carregar, as artes renderizam com a identidade do FEST.
 
@@ -166,6 +171,12 @@ Sem pessoas por padrão — `detectPerson()` ativa cenas com pessoa apenas se no
 
 23. **Rotação de layouts manda na aprovação** — `handleAprovarProposta` (client-router) e o pipeline CAST usam `pickNextLayout`/`pickCastLayout`; a sugestão de layout do LLM é apenas informativa. Override só com `body.layout` explícito (A–Q). Pool por cliente: `rotacaoLayouts` no `brand.js` (`{ default: [...] }` ou por tipo); sem ele vale `GENERIC_LAYOUT_POOL` (C/E/F/M/N/L).
 
+24. **archiver v8 não é factory** — `require('archiver')` retorna `{ ZipArchive, ... }` (classes), não uma função. Chamar `archiver('zip')` lança TypeError; se os headers HTTP já foram enviados, a resposta nunca termina e o download trava para sempre. Usar sempre `criarZipStream()` de `utils/zip.js` (compat v7/v8) e criar o archive ANTES do `res.writeHead`.
+
+25. **Preview de propostas usa `layoutPrevisto`** — `handlePedido` (client-router) calcula o layout do baralho na criação do lote e grava em `lote.layoutPrevisto`; a aprovação reusa esse valor. Assim o preview (`/propostas/preview?i=N`) mostra exatamente o layout que a arte final terá. FEST/CAST usam o `layout_sugerido` da proposta no preview (ilustrativo — o baralho decide na aprovação).
+
+26. **Carrossel é inferido do briefing** — a palavra "carrossel" no briefing de clientes dinâmicos adiciona `slides[]` ao JSON do LLM; na aprovação vira `arte.slides`. Slides renderizam em `/artes/{slug}/slide-N.html` (mesmo layout/fundo da capa, com `id="the-canvas"` injetado para screenshot). Export: botão "↓ Carrossel" na galeria → `/api/{slug}/arte/carrossel.zip`. PNGs derivados em `artes/{slug}/carrossel/` (gitignored).
+
 ---
 
 ## Rotas Sunny Systems (client-router genérico)
@@ -178,7 +189,10 @@ POST /api/sunnysystems/propostas/rejeitar    → descarta lote pendente
 POST /api/sunnysystems/arte/imagem/mudar     → nova imagem para arte existente
 POST /api/sunnysystems/arte/deletar          → deleta arte
 GET  /sunnysystems/                          → galeria (Cache-Control: no-store)
-GET  /artes/sunny-*/arte.html               → editor dinâmico
+GET  /api/sunnysystems/propostas/preview?i=N → preview HTML da proposta pendente (layout previsto + marca, sem fundo)
+GET  /api/sunnysystems/arte/carrossel.zip?slug= → ZIP capa + slides (artes com `slides`; briefing com "carrossel" ativa)
+GET  /artes/sunnysystems-*/arte.html         → editor dinâmico
+GET  /artes/sunnysystems-*/slide-N.html      → render simples do slide N do carrossel
 ```
 
 Mesmo padrão se aplica a qualquer cliente em `_clients.json` substituindo `sunnysystems` pelo slug.
@@ -193,11 +207,18 @@ GET  /api/calendario                     → todas as artes de todos os clientes
 POST /api/clientes/criar                 → onboarding via UI: briefing JSON → spawn onboarding-cliente.js (lock global, timeout 5min)
 GET  /calendario/                        → calendário editorial mensal multi-cliente (chips por marca, estados ●◔○)
 GET  /api/story.png?slug={slug}          → export Story 1080×1920 de qualquer cliente (botão "↓ Story" nas galerias)
+GET  /api/stats                          → agregados de geração LLM: custo/latência/taxa de sucesso por modelo + falhas recentes
+GET  /api/autopilot/plano                → itens de plano-editorial.json + clientes disponíveis
+POST /api/autopilot/planejar             → {cliente, quantidade, dias} — LLM distribui pautas; pedidos disparam sozinhos na data (tick 5min)
+POST /api/autopilot/remover              → {id} — remove pauta planejada (chip ◇ no /calendario/)
+GET  /api/propostas/preview?loteId=&id=  → preview HTML de proposta FEST (CAST: /api/cast/propostas/preview; dinâmicos: ?i=N)
 ```
 
 **Story (9:16):** `utils/story-png.js` tem dois modos. **stretch (padrão)** rediagrama de verdade: estica `#the-canvas` E `.art-canvas-inner` (ambos têm 540×675 inline — os dois precisam do override `!important`) para 540×960; os layouts full-bleed (containers `inset:0` + flex `space-between` + bg `object-fit:cover`) redistribuem sozinhos, com refino por layout em `LAYOUT_POLISH`. **frame** (fallback via `?modo=frame` ou `FRAME_LAYOUTS`): arte 4:5 intacta centralizada com o fundo desfocado nas bordas. `story.png` é derivado e está no .gitignore.
 
-**Telegram (opcional):** se `TELEGRAM_BOT_TOKEN` e `TELEGRAM_CHAT_ID` estiverem no `_scripts/.env`, o agendador envia o thumb + legenda via bot quando auto-publica. Sem as vars é no-op silencioso (`notificarTelegram` em `agendador.js`).
+**Telegram (opcional):** se `TELEGRAM_BOT_TOKEN` e `TELEGRAM_CHAT_ID` estiverem no `_scripts/.env`, o agendador envia o thumb + legenda via bot quando auto-publica, e o bot bidirecional (`utils/telegram-bot.js`, long polling iniciado no dev-server) envia cada lote de propostas com botões inline ✅1/2/3/❌ — a resposta aprova/rejeita via API local e devolve o thumb da arte criada. Sem as vars é no-op silencioso.
+
+**Instagram (opcional):** com `IG_USER_ID`, `IG_ACCESS_TOKEN` e `IG_PUBLIC_BASE_URL` no `_scripts/.env`, o agendador publica de verdade no feed via Graph API quando auto-publica (`utils/instagram.js`; container → poll → publish; grava `instagram_media_id` no banco). `IG_PUBLIC_BASE_URL` é a URL do deploy público onde `artes/{slug}/thumb.png` está acessível — a Graph API não aceita upload binário, só `image_url` público, então o deploy precisa acontecer antes do horário agendado.
 
 **Pedido simplificado:** as galerias enviam só o briefing em texto livre. O tipo é resolvido no backend: explícito no payload > inferido do briefing (`inferir-tipo.js`) > calendário do dia. `objetivo` tem default `audiencia`. Nuances de tom/objetivo escritas no briefing entram no prompt com prioridade máxima — não reintroduzir selects na UI.
 

@@ -42,6 +42,7 @@ function verificarAgendamentos(bancos = bancosDisponiveis()) {
       console.log(`✅ Agendador: auto-publicou ${arte.slug} (${path.basename(banco)})`);
       publicadas++;
       notificarTelegram(arte).catch(e => console.warn('⚠️  Telegram:', e.message));
+      publicarInstagram(banco, arte);
     }
     atomicWriteFileSync(banco, JSON.stringify(artes, null, 2) + '\n');
   }
@@ -76,6 +77,26 @@ async function notificarTelegram(arte) {
     if (!r.ok) throw new Error(`sendMessage ${r.status}`);
   }
   console.log(`📨 Telegram: notificação enviada para ${arte.slug}`);
+}
+
+// Publica no Instagram (fire-and-forget) e persiste o media id no banco depois.
+// No-op silencioso sem IG_USER_ID/IG_ACCESS_TOKEN/IG_PUBLIC_BASE_URL no .env.
+function publicarInstagram(banco, arte) {
+  const { publicarNoInstagram, igConfigurado } = require('./instagram.js');
+  if (!igConfigurado()) return;
+
+  publicarNoInstagram(arte)
+    .then(mediaId => {
+      if (!mediaId) return;
+      // relê o banco: o write do agendador já pode ter acontecido
+      const artes = JSON.parse(fs.readFileSync(banco, 'utf8'));
+      const alvo  = artes.find(a => a.slug === arte.slug);
+      if (!alvo) return;
+      alvo.instagram_media_id    = mediaId;
+      alvo.instagram_publicado_em = new Date().toISOString();
+      atomicWriteFileSync(banco, JSON.stringify(artes, null, 2) + '\n');
+    })
+    .catch(e => console.warn(`⚠️  Instagram (${arte.slug}):`, e.message));
 }
 
 // onChange: chamado quando alguma arte foi publicada (ex.: invalidar caches do servidor)

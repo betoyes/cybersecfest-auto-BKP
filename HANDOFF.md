@@ -7,6 +7,16 @@
 
 ## CHANGELOG RECENTE
 
+### 03 jul 2026 — onda de automação (6 features)
+
+- **Instagram real** — `utils/instagram.js` (Graph API: container → poll → publish) no agendador; env `IG_USER_ID`/`IG_ACCESS_TOKEN`/`IG_PUBLIC_BASE_URL`; grava `instagram_media_id` no banco
+- **Bot Telegram bidirecional** — `utils/telegram-bot.js`: lote de propostas chega no chat com botões ✅1/2/3/❌; aprovar gera a arte e devolve o thumb. Hooks em client-router (dinâmicos), CAST e FEST
+- **Autopilot editorial** — `utils/autopilot.js` + `plano-editorial.json`: LLM distribui pautas por cliente/período; pedidos disparam sozinhos na data (tick 5min); UI no `/calendario/` (toolbar ⚡ + chips ◇)
+- **Carrossel multi-slide** (clientes dinâmicos) — "carrossel" no briefing gera `slides[]`; render `/artes/{slug}/slide-N.html`; export ZIP capa+slides+legenda (botão "↓ Carrossel")
+- **Preview visual das propostas** — iframe escalado nos cards das 3 galerias antes de aprovar; `layoutPrevisto` calculado no pedido garante preview = arte final (dinâmicos)
+- **Stats de geração** — `utils/gen-stats.js` instrumenta `llm.js` (JSONL em `_tmp/`); `GET /api/stats` agrega custo/latência/falhas por modelo
+- **Fix crítico**: archiver v8 quebrava TODOS os exports ZIP (resposta travava para sempre) — `utils/zip.js` com `criarZipStream()` compat v7/v8 (gotcha 24)
+
 ### 01–03 jul 2026 — PLANO-3 + onda de features (commits b0459f8…a69fd1c)
 
 **Infra e robustez:**

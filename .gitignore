@@ -17,6 +17,10 @@ propostas-cast.json
 
 # Export derivado (regenerável via GET /api/story.png?slug=)
 artes/**/story.png
+artes/**/carrossel/
+
+# Stats de geração LLM (runtime, GET /api/stats)
+_tmp/stats-geracao.jsonl
 
 # Mídia local não versionada (fora do escopo do site)
 Cybersec.CAST-Website/

@@ -44,7 +44,20 @@
   }
   .chip.agendado { background: transparent; }
   .chip.rascunho { opacity: 0.45; }
+  .chip.planejado { background: transparent; border-style: dashed; opacity: 0.8; }
   .stats { margin-top: 16px; font-size: 12px; color: #6b7280; }
+  .autopilot { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .autopilot select, .autopilot input {
+    background: #0d1420; border: 1px solid #1f2937; color: #e5e7eb;
+    padding: 6px 10px; border-radius: 8px; font-size: 13px;
+  }
+  .autopilot input[type=number] { width: 64px; }
+  .autopilot button {
+    background: #14A8F4; border: 0; color: #02050A; font-weight: 700;
+    padding: 7px 14px; border-radius: 8px; cursor: pointer; font-size: 13px;
+  }
+  .autopilot button:disabled { opacity: 0.5; cursor: wait; }
+  .autopilot .msg { font-size: 12px; color: #9ca3af; }
 </style>
 </head>
 <body>
@@ -59,6 +72,16 @@
     </div>
   </div>
   <div class="legenda" id="legenda"></div>
+  <div class="autopilot">
+    <span title="Gera pautas automaticamente e dispara os pedidos quando a data chega">⚡ Autopilot:</span>
+    <select id="ap-cliente"></select>
+    <input type="number" id="ap-qtd" min="1" max="15" value="3" title="Quantidade de pautas">
+    <span style="font-size:12px;color:#6b7280">pautas em</span>
+    <input type="number" id="ap-dias" min="1" max="60" value="7" title="Janela em dias">
+    <span style="font-size:12px;color:#6b7280">dias</span>
+    <button id="ap-btn" onclick="planejarAutopilot()">Planejar</button>
+    <span class="msg" id="ap-msg"></span>
+  </div>
   <div class="grid" id="grid"></div>
   <div class="stats" id="stats"></div>
 
@@ -68,6 +91,7 @@ const GALERIA = { fest: '/fest/', cast: '/cast/' };
 const DOW = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
 let artes = [];
+let planoItens = [];
 let ref = new Date();
 
 function corCliente(c) { return CORES[c] || '#9ca3af'; }
@@ -97,6 +121,10 @@ function render() {
     const d = dataArte(a);
     if (d) (porDia[d] = porDia[d] || []).push(a);
   }
+  const porDiaPlano = {};
+  for (const p of planoItens.filter(p => p.status === 'planejado')) {
+    (porDiaPlano[p.data] = porDiaPlano[p.data] || []).push(p);
+  }
 
   const primeiro = new Date(ano, mes, 1);
   const inicio = new Date(primeiro);
@@ -118,6 +146,10 @@ function render() {
       const icone = st === 'publicado' ? '●' : st === 'agendado' ? '◔' : '○';
       return `<a class="chip ${st}" style="${estilo}" href="${galeriaCliente(a.cliente)}?arte=${encodeURIComponent(a.slug)}"
         title="[${a.cliente}] ${a.headline} — ${st}">${icone} ${a.headline || a.slug}</a>`;
+    }).join('') + (porDiaPlano[key] || []).map(p => {
+      const cor = corCliente(p.cliente);
+      return `<button class="chip planejado" style="border-color:${cor};color:${cor}" onclick="removerPlano('${p.id}')"
+        title="[${p.cliente}] pauta planejada (autopilot) — clique para remover: ${(p.briefing || '').replace(/"/g, '&quot;')}">◇ ${p.briefing || p.tipo}</button>`;
     }).join('');
     html += `<div class="dia${fora ? ' fora' : ''}${key === hoje ? ' hoje' : ''}">
       <div class="num">${cursor.getDate()}</div>${chips}</div>`;
@@ -136,17 +168,72 @@ function renderLegenda() {
   const clientes = [...new Set(artes.map(a => a.cliente))];
   document.getElementById('legenda').innerHTML =
     clientes.map(c => `<span><span class="dot" style="background:${corCliente(c)}"></span>${c}</span>`).join('') +
-    `<span style="margin-left:12px">● publicado &nbsp; ◔ agendado &nbsp; ○ rascunho</span>`;
+    `<span style="margin-left:12px">● publicado &nbsp; ◔ agendado &nbsp; ○ rascunho &nbsp; ◇ pauta planejada</span>`;
 }
 
 function mudarMes(delta) { ref = new Date(ref.getFullYear(), ref.getMonth() + delta, 1); render(); }
 function irHoje() { ref = new Date(); render(); }
+
+async function loadPlano() {
+  try {
+    const r = await fetch('/api/autopilot/plano').then(r => r.json());
+    if (!r.ok) return;
+    planoItens = r.itens || [];
+    const sel = document.getElementById('ap-cliente');
+    if (sel && !sel.options.length) {
+      sel.innerHTML = (r.clientes || []).map(c => `<option value="${c}">${c}</option>`).join('');
+    }
+  } catch { /* autopilot indisponível */ }
+}
+
+async function planejarAutopilot() {
+  const btn = document.getElementById('ap-btn');
+  const msg = document.getElementById('ap-msg');
+  const cliente = document.getElementById('ap-cliente').value;
+  if (!cliente) return;
+  btn.disabled = true;
+  msg.textContent = '⏳ Planejando pautas via IA…';
+  try {
+    const r = await fetch('/api/autopilot/planejar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        cliente,
+        quantidade: Number(document.getElementById('ap-qtd').value) || 3,
+        dias: Number(document.getElementById('ap-dias').value) || 7,
+      }),
+    }).then(r => r.json());
+    if (!r.ok) throw new Error(r.erro || 'Falha ao planejar');
+    msg.textContent = `✅ ${r.itens.length} pautas planejadas — os pedidos disparam sozinhos na data`;
+    await loadPlano();
+    render();
+  } catch (e) {
+    msg.textContent = '❌ ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function removerPlano(id) {
+  if (!confirm('Remover esta pauta planejada?')) return;
+  try {
+    const r = await fetch('/api/autopilot/remover', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    }).then(r => r.json());
+    if (!r.ok) throw new Error(r.erro || 'Falha');
+    await loadPlano();
+    render();
+  } catch (e) { alert('Erro: ' + e.message); }
+}
 
 async function init() {
   try {
     const r = await fetch('/api/calendario').then(r => r.json());
     if (!r.ok) throw new Error(r.erro || 'Falha ao carregar calendário');
     artes = r.artes;
+    await loadPlano();
     renderLegenda();
     // mês atual vazio → abre no mês mais recente com conteúdo
     const mesAtual = ymd(new Date()).slice(0, 7);

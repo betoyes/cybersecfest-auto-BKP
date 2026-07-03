@@ -646,6 +646,7 @@ function openModal(slug, arte) {
     <button class="btn-arte btn-arte-secondary" onclick="duplicarArte('${slug}')">⎘ Duplicar</button>
     <button class="btn-arte btn-arte-secondary" onclick="downloadArtePNG('${slug}', this)">↓ PNG</button>
     <a class="btn-arte btn-arte-secondary" href="/api/story.png?slug=${slug}" title="Exporta 1080×1920 (leva ~5s)">↓ Story</a>
+    ${arte.slides?.length ? `<a class="btn-arte btn-arte-secondary" href="${API}/arte/carrossel.zip?slug=${slug}" title="Exporta capa + ${arte.slides.length} slides (leva ~${5 * (arte.slides.length + 1)}s)">↓ Carrossel (${arte.slides.length + 1})</a>` : ''}
     <a class="btn-arte btn-arte-secondary" href="/artes/${slug}/arte.html" download="cyberseccast_${slug}.html">↓ HTML</a>
     <button type="button" class="btn-arte ${arte.publicado ? 'btn-arte-primary' : 'btn-arte-secondary'}" id="btn-publicado-arte" onclick="togglePublicado('${slug}')">${arte.publicado ? '✓ Publicada' : 'Marcar publicada'}</button>
     ${canDelete ? `<button type="button" class="btn-arte btn-arte-danger" id="btn-delete-arte" onclick="deletarArte('${slug}')">🗑 Excluir</button>` : ''}
@@ -1202,6 +1203,17 @@ function resetModaisFechados() {
   document.body.classList.remove('propostas-open', 'side-drawer-open');
 }
 
+// Escala os iframes de preview de arte (540×675) para caber na largura do card
+function fitPropArtPreviews(grid) {
+  requestAnimationFrame(() => grid.querySelectorAll('.prop-art-preview').forEach(wrap => {
+    const frame = wrap.querySelector('iframe');
+    if (!frame || !wrap.clientWidth) return;
+    const escala = wrap.clientWidth / 540;
+    frame.style.transform = `scale(${escala})`;
+    wrap.style.height = `${Math.round(675 * escala)}px`;
+  }));
+}
+
 function openPropostasOverlay(lote) {
   if (!lote || !lote.propostas) return;
   const overlay = document.getElementById('propostas-overlay');
@@ -1211,7 +1223,7 @@ function openPropostasOverlay(lote) {
 
   const defaultId = (lote.propostas.find(p => p.recomendada) || lote.propostas[0]).id;
 
-  grid.innerHTML = lote.propostas.map(p => {
+  grid.innerHTML = lote.propostas.map((p, i) => {
     const stats = headlineStats(p.headline);
     const statsClass = stats.words > 10 || stats.lines > 5 ? ' warn' : '';
     return `
@@ -1221,6 +1233,9 @@ function openPropostasOverlay(lote) {
       <div class="prop-angulo">${escHtml(p.angulo)}${p.tipo_post ? ` · <span class="prop-tipo">${escHtml(TIPO_LABELS[p.tipo_post] || p.tipo_post)}</span>` : ''}</div>
       <div class="prop-hl-preview" aria-label="Preview do título">${renderHeadlinePreview(p.headline, p.palavras_azuis)}</div>
       <div class="prop-hl-stats${statsClass}">${stats.words}/10 palavras · ${stats.lines}/5 linhas${p.palavras_azuis ? ` · destaque: ${escHtml(p.palavras_azuis)}` : ''}</div>
+      <div class="prop-art-preview" style="width:100%;overflow:hidden;border-radius:8px;border:1px solid #ffffff22;margin:8px 0;background:#05070c">
+        <iframe src="${API}/propostas/preview?i=${i}&v=${Date.now()}" loading="lazy" scrolling="no" tabindex="-1" title="Preview da arte (fundo será gerado após aprovação)" style="width:540px;height:675px;border:0;transform-origin:top left;pointer-events:none;display:block"></iframe>
+      </div>
       <p class="prop-sub">${escHtml(p.subtitulo || '')}</p>
       <div class="prop-legenda-label">CTA visual na arte</div>
       <input type="text" class="prop-cta-input" data-prop-id="${p.id}" maxlength="48"
@@ -1242,6 +1257,8 @@ function openPropostasOverlay(lote) {
       </div>
     </article>`;
   }).join('');
+
+  fitPropArtPreviews(grid);
 
   overlay.dataset.loteId = lote.id;
   const sugEl = document.getElementById('propostas-sugestao-visual');

@@ -536,6 +536,9 @@ module.exports = function setupCastRoutes({ ROOT, ARTES_TTL, setBusy, clearBusy,
         descartarPendente: !!payload.descartarPendente,
       });
       invalidateArtesCast();
+      if (resultado.modo === 'propostas' && resultado.lote) {
+        try { require('../utils/telegram-bot.js').notificarPropostas('cast', resultado.lote, 'cast'); } catch { /* opcional */ }
+      }
       json(res, 200, { ok: true, ...resultado });
     } catch (e) {
       if (e.statusCode === 413) return json(res, 413, { ok: false, erro: 'Payload muito grande' });
@@ -707,19 +710,69 @@ module.exports = function setupCastRoutes({ ROOT, ARTES_TTL, setBusy, clearBusy,
     }
   }
 
+  // Render simples (sem editor) de uma proposta pendente — preview antes de aprovar.
+  function renderPropostaPreview(res, proposta, brand) {
+    const layout = (proposta.layout_sugerido || proposta.layout || 'C').toUpperCase();
+    const simpleHtml = renderLayoutForBrand('preview-proposta', {
+      layout:          /^[A-Q]$/.test(layout) ? layout : 'C',
+      imageBase64:     '',
+      headline:        proposta.headline || '',
+      subtitulo:       proposta.subtitulo || '',
+      palavrasAzuis:   proposta.palavras_azuis || '',
+      nomePalestrante: '',
+      cargoEmpresa:    '',
+    }, brand);
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+    res.end(simpleHtml);
+  }
+
+  function acharProposta(data, loteId, id) {
+    const lote = (data.lotes || []).find(l => l.id === loteId)
+      || (data.lotes || []).find(l => l.status === 'aguardando_aprovacao');
+    return lote?.propostas?.find(p => p.id === id) || null;
+  }
+
+  // GET /api/cast/propostas/preview?loteId=&id=
+  async function handleCastPropostaPreview(_req, res, searchParams) {
+    try {
+      const { loadStore } = require('../utils/propostas-store-cast.js');
+      const { data } = await loadStore();
+      const proposta = acharProposta(data, String(searchParams.get('loteId') || ''), String(searchParams.get('id') || ''));
+      if (!proposta) { res.writeHead(404); return res.end('Proposta não encontrada'); }
+      renderPropostaPreview(res, proposta, CAST_BRAND);
+    } catch (e) {
+      log.error('CAST preview proposta:', e.message);
+      res.writeHead(500); res.end('Erro ao gerar preview');
+    }
+  }
+
+  // GET /api/propostas/preview?loteId=&id= (FEST)
+  async function handleFestPropostaPreview(_req, res, searchParams) {
+    try {
+      const { loadStore } = require('../utils/propostas-store.js');
+      const { data } = await loadStore();
+      const proposta = acharProposta(data, String(searchParams.get('loteId') || ''), String(searchParams.get('id') || ''));
+      if (!proposta) { res.writeHead(404); return res.end('Proposta não encontrada'); }
+      renderPropostaPreview(res, proposta, null); // brand null → identidade FEST
+    } catch (e) {
+      log.error('FEST preview proposta:', e.message);
+      res.writeHead(500); res.end('Erro ao gerar preview');
+    }
+  }
+
   // GET /api/cast/exportar/zip
   async function handleCastExportarZip(_req, res) {
     try {
-      const archiver = require('archiver');
-      const artes    = readArtesCast();
+      const { criarZipStream } = require('../utils/zip.js');
+      const artes = readArtesCast();
       if (!artes.length) return json(res, 404, { ok: false, erro: 'Nenhuma arte CAST' });
 
+      const archive = criarZipStream();
       res.writeHead(200, {
         'Content-Type':        'application/zip',
         'Content-Disposition': `attachment; filename="cast-artes-${new Date().toISOString().slice(0,10)}.zip"`,
       });
 
-      const archive = archiver('zip', { zlib: { level: 6 } });
       archive.pipe(res);
 
       for (const arte of artes) {
@@ -765,6 +818,8 @@ module.exports = function setupCastRoutes({ ROOT, ARTES_TTL, setBusy, clearBusy,
     handleCastDuplicarArte,
     handleCastExportarZip,
     handleCastPreview,
+    handleCastPropostaPreview,
+    handleFestPropostaPreview,
     invalidateArtesCast,
   };
 };

@@ -155,6 +155,9 @@ async function handlePedido(req, res) {
     });
 
     log.info(`Pedido OK: modo=${resultado.modo}`);
+    if (resultado.modo === 'propostas' && resultado.lote) {
+      try { require('./utils/telegram-bot.js').notificarPropostas('fest', resultado.lote, 'fest'); } catch { /* opcional */ }
+    }
     json(res, 200, { ok: true, ...resultado });
   } catch (e) {
     if (e.statusCode === 413) return json(res, 413, { ok: false, erro: 'Payload muito grande' });
@@ -668,7 +671,8 @@ const {
   handleCastArteHtmlDynamic, handleFestArteHtmlDynamic, handleFestReaplicar, handleCastExportar,
   handleCastReaplicar, handleCastDeletarArte, handleCastPedido,
   handleCastPropostasGet, handleCastAprovar, handleCastRejeitar,
-  handleCastConsumirBanco, handleCastCampanha, handleCastDuplicarArte, handleCastExportarZip, handleCastPreview, invalidateArtesCast,
+  handleCastConsumirBanco, handleCastCampanha, handleCastDuplicarArte, handleCastExportarZip, handleCastPreview,
+  handleCastPropostaPreview, handleFestPropostaPreview, invalidateArtesCast,
 } = require('./routes/cast.js')({ ROOT, ARTES_TTL, setBusy, clearBusy, json, readBody, log, LAYOUT_BG_POS, readArtes });
 
 
@@ -688,6 +692,7 @@ const server = http.createServer((req, res) => {
   if (req.method === 'POST' && urlPath === '/api/campanha') return handleCampanha(req, res);
   if (req.method === 'POST' && urlPath === '/api/pedido') return handlePedido(req, res);
   if (req.method === 'GET'  && urlPath === '/api/propostas') return handlePropostasGet(req, res);
+  if (req.method === 'GET'  && urlPath === '/api/propostas/preview') return handleFestPropostaPreview(req, res, url.searchParams);
   if (req.method === 'POST' && urlPath === '/api/propostas/aprovar') return handleAprovar(req, res);
   if (req.method === 'POST' && urlPath === '/api/propostas/rejeitar') return handleRejeitar(req, res);
   if (req.method === 'POST' && urlPath === '/api/banco/consumir') return handleConsumirBanco(req, res);
@@ -715,6 +720,50 @@ const server = http.createServer((req, res) => {
       build: '2026-06-23-arte-deletar',
       apis: ['pedido', 'campanha', 'campanha/export', 'propostas', 'aprovar', 'banco', 'arte/salvar', 'arte/deletar', 'motion/selecionar', 'motion/aprovar-mp4', 'motion/deletar', 'motion/mp4', 'motion/versoes', 'motion/pedido', 'motion/presets', 'template/padroes', 'temas/calendario'],
     });
+  }
+
+  // ── Autopilot editorial (plano de pautas em lote) ───────────────
+  if (urlPath === '/api/autopilot/plano' && req.method === 'GET') {
+    try {
+      const { lerPlano, clientesDisponiveis } = require('./utils/autopilot.js');
+      return json(res, 200, { ok: true, itens: lerPlano(), clientes: clientesDisponiveis() });
+    } catch (e) { return json(res, 500, { ok: false, erro: e.message }); }
+  }
+  if (urlPath === '/api/autopilot/planejar' && req.method === 'POST') {
+    return (async () => {
+      if (!setBusy(res, '__autopilot')) return;
+      try {
+        const payload = await readBody(req);
+        const cliente = String(payload?.cliente || '').trim();
+        if (!cliente) return json(res, 400, { ok: false, erro: 'cliente obrigatório' });
+        const { gerarPlano } = require('./utils/autopilot.js');
+        const itens = await gerarPlano({ cliente, dias: payload.dias, quantidade: payload.quantidade });
+        json(res, 200, { ok: true, itens });
+      } catch (e) {
+        log.error('Autopilot planejar:', e.message);
+        json(res, 500, { ok: false, erro: e.message });
+      } finally { clearBusy('__autopilot'); }
+    })();
+  }
+  if (urlPath === '/api/autopilot/remover' && req.method === 'POST') {
+    return (async () => {
+      try {
+        const payload = await readBody(req);
+        const { removerItem } = require('./utils/autopilot.js');
+        if (!removerItem(String(payload?.id || ''))) return json(res, 404, { ok: false, erro: 'item não encontrado' });
+        json(res, 200, { ok: true });
+      } catch (e) { json(res, 500, { ok: false, erro: e.message }); }
+    })();
+  }
+
+  // ── Stats de geração LLM (custo, latência, falhas por modelo) ───
+  if (req.method === 'GET' && urlPath === '/api/stats') {
+    try {
+      const { agregar } = require('./utils/gen-stats.js');
+      return json(res, 200, { ok: true, ...agregar() });
+    } catch (e) {
+      return json(res, 500, { ok: false, erro: e.message });
+    }
   }
 
   if (req.method === 'GET'  && urlPath === '/api/template/padroes') {
@@ -853,6 +902,7 @@ const server = http.createServer((req, res) => {
   if (req.method === 'POST' && urlPath === '/api/cast/campanha') return handleCastCampanha(req, res);
   if (req.method === 'POST' && urlPath === '/api/cast/pedido') return handleCastPedido(req, res);
   if (req.method === 'GET'  && urlPath === '/api/cast/propostas') return handleCastPropostasGet(req, res);
+  if (req.method === 'GET'  && urlPath === '/api/cast/propostas/preview') return handleCastPropostaPreview(req, res, url.searchParams);
   if (req.method === 'POST' && urlPath === '/api/cast/propostas/aprovar') return handleCastAprovar(req, res);
   if (req.method === 'POST' && urlPath === '/api/cast/propostas/rejeitar') return handleCastRejeitar(req, res);
   if (req.method === 'POST' && urlPath === '/api/cast/banco/consumir') return handleCastConsumirBanco(req, res);
@@ -907,4 +957,14 @@ server.listen(PORT, HOST, () => {
   log.info(`CybersecFEST Dev Server — http://${HOST}:${PORT}/ — modo: ${local ? 'LOCAL' : 'REMOTO'}`);
   iniciarAgendador(() => { invalidateArtes(); invalidateArtesCast(); });
   log.info('Agendador de publicação ativo (verifica publicar_em a cada 60s)');
+
+  const { iniciarTelegramBot } = require('./utils/telegram-bot.js');
+  if (iniciarTelegramBot({ apiBase: `http://${HOST}:${PORT}` })) {
+    log.info('Telegram bot ativo — propostas aprováveis pelo chat');
+  }
+
+  const { iniciarAutopilot } = require('./utils/autopilot.js');
+  if (iniciarAutopilot({ apiBase: `http://${HOST}:${PORT}` })) {
+    log.info('Autopilot editorial ativo (verifica plano-editorial.json a cada 5min)');
+  }
 });

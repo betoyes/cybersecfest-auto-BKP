@@ -5,6 +5,7 @@ const { OpenAI } = require('openai');
 const { GoogleGenAI } = require('@google/genai');
 const path = require('path');
 const { getReferencePartsForGeneration, STYLE_REF_INSTRUCTION } = require('./reference-images.js');
+const stats = require('./gen-stats.js');
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY_CREAO });
 const gemini = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY_CREAO });
@@ -22,7 +23,9 @@ async function generateText(prompt, systemPrompt = '', temperature = 0.85, maxTo
     messages.push({ role: 'user', content: prompt });
     const opts = { model: 'gpt-4o', messages, temperature };
     if (maxTokens) opts.max_tokens = maxTokens;
-    const res = await openai.chat.completions.create(opts);
+    const res = await stats.medir('texto', 'gpt-4o',
+      () => openai.chat.completions.create(opts),
+      r => stats.custoTexto('gpt-4o', r.usage?.prompt_tokens, r.usage?.completion_tokens));
     return res.choices[0].message.content.trim();
   } catch (e) {
     console.warn('⚠️  OpenAI text falhou → Gemini Flash:', e.message);
@@ -31,7 +34,9 @@ async function generateText(prompt, systemPrompt = '', temperature = 0.85, maxTo
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
     };
     if (systemPrompt) geminiReq.config = { systemInstruction: systemPrompt };
-    const res = await gemini.models.generateContent(geminiReq);
+    const res = await stats.medir('texto', 'gemini-2.0-flash',
+      () => gemini.models.generateContent(geminiReq),
+      r => stats.custoTexto('gemini-2.0-flash', r.usageMetadata?.promptTokenCount, r.usageMetadata?.candidatesTokenCount));
     return (res.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
   }
 }
@@ -39,13 +44,13 @@ async function generateText(prompt, systemPrompt = '', temperature = 0.85, maxTo
 // ── gpt-image-1 (ChatGPT Image — gerador principal CAST) ─────────
 // gpt-image-2 testado e descartado: ~110s por imagem (muito lento)
 async function generateImageGptImage1(prompt) {
-  const res = await openai.images.generate({
+  const res = await stats.medir('imagem', 'gpt-image-1', () => openai.images.generate({
     model: 'gpt-image-1',
     prompt,
     n: 1,
     size: '1024x1536',   // portrait 2:3 — o mais próximo de 3:4
     quality: 'high',
-  });
+  }));
 
   const b64 = res.data?.[0]?.b64_json;
   if (b64) {
@@ -68,14 +73,14 @@ async function generateImageGptImage1(prompt) {
 // Variação controlada: seed explícito para composições consistentes — retorna { buffer, seed }
 async function generateImageGptImage1WithSeed(prompt, seedIn = null) {
   const seed = (Number.isInteger(seedIn) && seedIn > 0) ? seedIn : Math.floor(Math.random() * 2147483647);
-  const res = await openai.images.generate({
+  const res = await stats.medir('imagem', 'gpt-image-1', () => openai.images.generate({
     model: 'gpt-image-1',
     prompt,
     n: 1,
     size: '1024x1536',
     quality: 'high',
     seed,
-  });
+  }));
 
   const b64 = res.data?.[0]?.b64_json;
   if (b64) {
@@ -120,13 +125,17 @@ async function generateImageNanoBanana(prompt, { referenceParts = [], styleInstr
 
   for (const model of NANO_BANANA_MODELS) {
     try {
-      const response = await gemini.models.generateContent({
-        model,
-        contents,
-        config: {
-          responseModalities: ['TEXT', 'IMAGE'],
-          imageConfig: { aspectRatio: '3:4' },
-        },
+      const response = await stats.medir('imagem', model, async () => {
+        const r = await gemini.models.generateContent({
+          model,
+          contents,
+          config: {
+            responseModalities: ['TEXT', 'IMAGE'],
+            imageConfig: { aspectRatio: '3:4' },
+          },
+        });
+        if (!(extractImageBuffer(r)?.length > 100)) throw new Error('resposta sem inlineData de imagem');
+        return r;
       });
 
       const buffer = extractImageBuffer(response);
@@ -147,12 +156,12 @@ async function generateImageNanoBanana(prompt, { referenceParts = [], styleInstr
 
 // ── Fallback: DALL-E 3 ─────────────────────────────────────────────
 async function generateImageDalle(prompt) {
-  const res = await openai.images.generate({
+  const res = await stats.medir('imagem', 'dall-e-3', () => openai.images.generate({
     model: 'dall-e-3',
     prompt,
     n: 1,
     size: '1024x1792',
-  });
+  }));
 
   const url = res.data?.[0]?.url;
   if (!url) throw new Error('DALL-E 3 sem URL');
