@@ -414,7 +414,9 @@ if(hlEdit&&TITL){
 var FORMATOS={
   feed_vertical:{w:540,h:675,ew:1080,eh:1350,label:'Feed Vertical 4:5',scale:1,offY:0},
   feed_quadrado:{w:540,h:540,ew:1080,eh:1080,label:'Feed Quadrado 1:1',scale:540/675,offY:0},
-  stories:{w:540,h:960,ew:1080,eh:1920,label:'Stories 9:16',scale:1,offY:142}
+  // stretch:true = rediagrama (inner acompanha o canvas e o layout reflow);
+  // sem stretch seria letterbox (arte 675 fixa + faixas)
+  stories:{w:540,h:960,ew:1080,eh:1920,label:'Stories 9:16',scale:1,offY:0,stretch:true}
 };
 function applyFormato(id){
   var f=FORMATOS[id]||FORMATOS.feed_vertical;
@@ -427,11 +429,19 @@ function applyFormato(id){
   cv.style.height=f.h+'px';
   var inner=cv.querySelector('.art-canvas-inner');
   if(inner){
-    inner.style.width='540px';
-    inner.style.height='675px';
-    inner.style.transform=f.scale!==1?'scale('+f.scale+')':'';
-    inner.style.transformOrigin='top center';
-    inner.style.marginTop=f.offY?f.offY+'px':'';
+    if(f.stretch){
+      inner.style.width=f.w+'px';
+      inner.style.height=f.h+'px';
+      inner.style.transform='';
+      inner.style.transformOrigin='';
+      inner.style.marginTop='';
+    }else{
+      inner.style.width='540px';
+      inner.style.height='675px';
+      inner.style.transform=f.scale!==1?'scale('+f.scale+')':'';
+      inner.style.transformOrigin='top center';
+      inner.style.marginTop=f.offY?f.offY+'px':'';
+    }
   }
   var fl=document.getElementById('fmtLabel');
   var fd=document.getElementById('fmtDims');
