@@ -1,11 +1,31 @@
 # CybersecFEST — Documento de Handoff para Nova IA
 
-> **Última atualização:** 28 jun 2026 — sessão Claude Code (12 melhorias CAST + porte completo para Sunny Systems / client-router)  
+> **Última atualização:** 03 jul 2026 — sessão Claude Code (PLANO-3 + onda de features: stories, calendário, simplificação)  
 > **Propósito:** Onboarding completo para qualquer IA ou agente que vá dar continuidade a este projeto.
 
 ---
 
 ## CHANGELOG RECENTE
+
+### 01–03 jul 2026 — PLANO-3 + onda de features (commits b0459f8…a69fd1c)
+
+**Infra e robustez:**
+- Writes atômicos (`utils/atomic-write.js`) em todos os bancos JSON
+- Rate limit `_imgLock` (429) na geração de imagem; retry validado
+- `.gitignore`: .DS_Store, .serena/, propostas-cast.json, mídia local, story.png
+
+**Features novas:**
+- **Publicação agendada** — `publicar_em` + `utils/agendador.js` (60s no dev-server, invalida caches); notificação Telegram opcional (env)
+- **Busca global** `GET /api/search?q=` e **calendário editorial** `/calendario/` + `GET /api/calendario` (multi-cliente, abre no mês com conteúdo, chip abre a arte via `?arte=slug`)
+- **Export Story 1080×1920** — `GET /api/story.png?slug=` + formato Stories do editor; modo stretch rediagrama (estica `#the-canvas` + `.art-canvas-inner`), safe areas do Instagram e tipografia maior via `LAYOUT_POLISH`; frame (blur) como fallback
+- **Onboarding via UI** — card "＋ Novo cliente" na home → `POST /api/clientes/criar`; home renderiza cards de `_clients.json` dinamicamente
+
+**Correções de fluxo:**
+- Título editado no editor persiste no banco também no FEST (gotcha 15 resolvido)
+- Toggle "Marcar publicada" do CAST não exige mais `state`
+- **Rotação de layouts manda na aprovação** (gotcha 25): LLM não dita layout; pools por cliente via `brand.js` → `rotacaoLayouts`; prompts da Sunny usam zonas de exclusão canônicas (`getLayoutImageRules`)
+- **Pedido simplificado**: galerias = caixa de briefing única; tipo inferido do texto (`utils/inferir-tipo.js`), vazio = calendário; selects de tipo/objetivo e checkbox "Forçar" removidos
+- UX: toasts (`assets/toast.js`) no lugar de alert(), nav cruzada FEST↔CAST↔Sunny↔📅, home com card de cliente dinâmico
 
 ### 28 jun 2026 — 9 melhorias Plano-2 + configuração de tokens
 

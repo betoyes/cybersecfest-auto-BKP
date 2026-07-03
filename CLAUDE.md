@@ -70,6 +70,9 @@ FEST e CAST têm rotas hardcoded em `dev-server.js`. Clientes dinâmicos (Sunny 
 | `artes.json` | Banco de artes FEST (append-only, dono: SuperAgent) |
 | `_scripts/utils/agendador.js` | Publicação agendada — verifica `publicar_em` nos bancos a cada 60s (roda no dev-server) |
 | `_scripts/utils/atomic-write.js` | `atomicWriteFileSync` — escrita temp+rename para bancos JSON (usar em todo write de banco) |
+| `_scripts/utils/story-png.js` | Export Story 1080×1920 — modo stretch (rediagrama) + frame; `LAYOUT_POLISH` por layout |
+| `_scripts/utils/inferir-tipo.js` | Classifica o briefing livre num tipo do cliente (LLM temp 0); vazio = calendário do dia |
+| `assets/toast.js` | Toast compartilhado das galerias (`toast(msg)` — substitui alert) |
 | `assets/logo-sunny.png` | Logo Sunny Systems — versão branca (sol âmbar + texto branco) para fundo escuro |
 
 ---
@@ -199,6 +202,8 @@ GET  /api/story.png?slug={slug}          → export Story 1080×1920 de qualquer
 **Story (9:16):** `utils/story-png.js` tem dois modos. **stretch (padrão)** rediagrama de verdade: estica `#the-canvas` E `.art-canvas-inner` (ambos têm 540×675 inline — os dois precisam do override `!important`) para 540×960; os layouts full-bleed (containers `inset:0` + flex `space-between` + bg `object-fit:cover`) redistribuem sozinhos, com refino por layout em `LAYOUT_POLISH`. **frame** (fallback via `?modo=frame` ou `FRAME_LAYOUTS`): arte 4:5 intacta centralizada com o fundo desfocado nas bordas. `story.png` é derivado e está no .gitignore.
 
 **Telegram (opcional):** se `TELEGRAM_BOT_TOKEN` e `TELEGRAM_CHAT_ID` estiverem no `_scripts/.env`, o agendador envia o thumb + legenda via bot quando auto-publica. Sem as vars é no-op silencioso (`notificarTelegram` em `agendador.js`).
+
+**Pedido simplificado:** as galerias enviam só o briefing em texto livre. O tipo é resolvido no backend: explícito no payload > inferido do briefing (`inferir-tipo.js`) > calendário do dia. `objetivo` tem default `audiencia`. Nuances de tom/objetivo escritas no briefing entram no prompt com prioridade máxima — não reintroduzir selects na UI.
 
 **Publicação agendada:** `POST /api/{cast|slug}/arte/salvar` aceita `{ slug, publicar_em: ISO|null }` (sem `state`). O agendador (`utils/agendador.js`, intervalo 60s no dev-server) publica automaticamente quando a data chega e invalida os caches. Toggle manual: `{ slug, publicado: bool }`.
 
