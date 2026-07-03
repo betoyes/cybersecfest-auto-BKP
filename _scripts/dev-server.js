@@ -774,7 +774,23 @@ const server = http.createServer((req, res) => {
       try {
         const { gerarStoryPng } = require('./utils/story-png.js');
         const out = path.join(ROOT, 'artes', slug, 'story.png');
-        await gerarStoryPng(`http://${HOST}:${PORT}/artes/${slug}/arte.html`, out);
+
+        // layout da arte: procura em todos os bancos (fest, cast, dinâmicos)
+        let layout = '';
+        const bancos = ['artes.json', 'artes-cast.json'];
+        try {
+          JSON.parse(fs.readFileSync(path.join(ROOT, '_clients.json'), 'utf8'))
+            .filter(c => c.ativo).forEach(c => bancos.push(`artes-${c.slug}.json`));
+        } catch { /* sem clientes dinâmicos */ }
+        for (const b of bancos) {
+          try {
+            const arte = JSON.parse(fs.readFileSync(path.join(ROOT, b), 'utf8')).find(a => a.slug === slug);
+            if (arte) { layout = arte.layout || ''; break; }
+          } catch { /* banco ausente */ }
+        }
+
+        const modo = ['stretch', 'frame'].includes(url.searchParams.get('modo')) ? url.searchParams.get('modo') : null;
+        await gerarStoryPng(`http://${HOST}:${PORT}/artes/${slug}/arte.html`, out, { layout, modo });
         res.writeHead(200, {
           'Content-Type': 'image/png',
           'Content-Disposition': `attachment; filename="${slug}-story.png"`,

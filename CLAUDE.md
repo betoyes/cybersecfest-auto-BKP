@@ -194,7 +194,7 @@ GET  /calendario/                        → calendário editorial mensal multi-
 GET  /api/story.png?slug={slug}          → export Story 1080×1920 de qualquer cliente (botão "↓ Story" nas galerias)
 ```
 
-**Story (9:16):** `utils/story-png.js` NÃO estica o canvas (layouts têm posições fixas — quebra). Renderiza a arte 4:5 intacta centralizada num quadro 540×960 com o fundo da própria arte desfocado nas bordas (`blur(38px) brightness(0.45)`), tudo montado via `page.evaluate` no Puppeteer sobre o `arte.html` dinâmico. `story.png` é derivado e está no .gitignore.
+**Story (9:16):** `utils/story-png.js` tem dois modos. **stretch (padrão)** rediagrama de verdade: estica `#the-canvas` E `.art-canvas-inner` (ambos têm 540×675 inline — os dois precisam do override `!important`) para 540×960; os layouts full-bleed (containers `inset:0` + flex `space-between` + bg `object-fit:cover`) redistribuem sozinhos, com refino por layout em `LAYOUT_POLISH`. **frame** (fallback via `?modo=frame` ou `FRAME_LAYOUTS`): arte 4:5 intacta centralizada com o fundo desfocado nas bordas. `story.png` é derivado e está no .gitignore.
 
 **Telegram (opcional):** se `TELEGRAM_BOT_TOKEN` e `TELEGRAM_CHAT_ID` estiverem no `_scripts/.env`, o agendador envia o thumb + legenda via bot quando auto-publica. Sem as vars é no-op silencioso (`notificarTelegram` em `agendador.js`).
 
