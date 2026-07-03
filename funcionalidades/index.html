@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Funcionalidades — Studio</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:      #08090d;
+    --surface: #0f1117;
+    --border:  rgba(255,255,255,0.07);
+    --text:    #e2e4ea;
+    --muted:   #6b7280;
+    --cyan:    #14a8f4;
+    --indigo:  #6366f1;
+    --violet:  #8b5cf6;
+    --green:   #22c55e;
+    --amber:   #fbb414;
+    --rose:    #f43f5e;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    padding: 2rem 2.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  .logo-mark {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--cyan), var(--indigo));
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 900; color: #fff; letter-spacing: -1px;
+  }
+  .logo-text { font-size: 0.95rem; font-weight: 600; }
+  .logo-sub  { font-size: 0.75rem; color: var(--muted); margin-top: 1px; }
+  .header-link {
+    margin-left: auto; color: #9ca3af; text-decoration: none; font-size: 14px;
+    border: 1px solid #1f2937; padding: 8px 16px; border-radius: 8px;
+    transition: color .2s, border-color .2s;
+  }
+  .header-link:hover { color: var(--text); border-color: #374151; }
+
+  main {
+    flex: 1;
+    width: 100%;
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 3rem 2rem 4rem;
+  }
+
+  .headline { text-align: center; margin-bottom: 3rem; }
+  .headline h1 {
+    font-size: clamp(1.6rem, 3vw, 2.4rem);
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+  .headline p {
+    margin-top: 0.75rem;
+    color: var(--muted);
+    font-size: 0.95rem;
+    max-width: 560px;
+    margin-inline: auto;
+    line-height: 1.6;
+  }
+
+  .secao { margin-bottom: 2.75rem; }
+  .secao-titulo {
+    display: flex; align-items: center; gap: 0.6rem;
+    font-size: 0.78rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-bottom: 1rem;
+  }
+  .secao-titulo::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1rem;
+  }
+
+  .feat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.4rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    text-decoration: none;
+    color: inherit;
+    transition: border-color .2s, transform .2s;
+  }
+  a.feat:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.18); }
+
+  .feat-top { display: flex; align-items: center; gap: 0.6rem; }
+  .feat-icon {
+    width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; background: rgba(255,255,255,0.05);
+  }
+  .feat-nome { font-size: 0.98rem; font-weight: 700; letter-spacing: -0.2px; }
+  .feat-desc { font-size: 0.83rem; color: var(--muted); line-height: 1.55; flex: 1; }
+
+  .feat-tags { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.2rem; }
+  .tag {
+    font-size: 0.68rem; font-weight: 600;
+    padding: 0.18rem 0.5rem; border-radius: 999px;
+    background: rgba(255,255,255,0.05); color: #9ca3af;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  }
+  .tag--rota { color: var(--cyan); background: rgba(20,168,244,0.08); }
+  .tag--env  { color: var(--amber); background: rgba(251,180,20,0.08); }
+  .tag--novo { color: var(--green); background: rgba(34,197,94,0.1); }
+
+  .abrir { font-size: 0.75rem; color: var(--cyan); margin-top: 0.3rem; }
+
+  footer {
+    padding: 1.5rem 2.5rem;
+    border-top: 1px solid var(--border);
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-mark">D</div>
+  <div>
+    <div class="logo-text">Funcionalidades</div>
+    <div class="logo-sub">Tudo o que o Studio faz, num só lugar</div>
+  </div>
+  <a class="header-link" href="/">← Studio</a>
+</header>
+
+<main>
+  <div class="headline">
+    <h1>Fábrica de conteúdo, de ponta a ponta</h1>
+    <p>Do briefing em texto livre à publicação real no Instagram: propostas por IA, artes com identidade de marca,
+       aprovação pelo celular e calendário que se preenche sozinho.</p>
+  </div>
+
+  <!-- ══ Criação de conteúdo ══ -->
+  <div class="secao">
+    <div class="secao-titulo">Criação de conteúdo</div>
+    <div class="grid">
+
+      <div class="feat">
+        <div class="feat-top"><div class="feat-icon">✦</div><div class="feat-nome">Pedido por briefing livre</div></div>
+        <p class="feat-desc">Escreva o briefing em texto corrido — o tipo de conteúdo é inferido automaticamente (ou vem do calendário editorial do dia) e a IA gera 3 propostas completas: headline, palavras de destaque, subtítulo, legenda com hashtags e cena visual.</p>
+        <div class="feat-tags"><span class="tag tag--rota">POST /api/{cliente}/pedido</span><span class="tag">GPT-4o → Gemini</span></div>
+      </div>
+
+      <div class="feat">
+        <div class="feat-top"><div class="feat-icon">👁</div><div class="feat-nome">Preview visual das propostas</div></div>
+        <p class="feat-desc">Antes de gastar uma geração de imagem, cada proposta mostra a arte real em miniatura — marca, tipografia e o layout exato que a aprovação usará. O que você vê é o que sai.</p>
+        <div class="feat-tags"><span class="tag tag--novo">novo</span><span class="tag tag--rota">GET /propostas/preview</span></div>
+      </div>
+
+      <div class="feat">
+        <div class="feat-top"><div class="feat-icon">🎨</div><div class="feat-nome">Imagens de fundo por IA</div></div>
+        <p class="feat-desc">Cadeia com fallback automático: Gemini Nano Banana → gpt-image-1 → DALL-E 3. Referências de estilo por marca, cena contextual derivada do briefing, detecção de pessoa e crop inteligente (o sujeito da foto posiciona o enquadramento).</p>
+        <div class="feat-tags"><span class="tag">3 geradores</span><span class="tag">style refs</span></div>
+      </div>
+
+      <div class="feat">
+        <div class="feat-top"><div class="feat-icon">🃏</div><div class="feat-nome">Rotação de layouts</div></div>
+        <p class="feat-desc">17 layouts de diagramação (A–Q) girando como um baralho embaralhado, sem repetição até esgotar o pool — pool configurável por cliente e por tipo de post. O feed nunca fica visualmente monótono.</p>
+        <div class="feat-tags"><span class="tag">layouts A–Q</span><span class="tag">rotacaoLayouts</span></div>
+      </div>
+
+      <div class="feat">
+        <div class="feat-top"><div class="feat-icon">🔁</div><div class="feat-nome">Anti-repetição semântica</div></div>
+        <p class="feat-desc">Propostas novas são comparadas por embeddings com as artes recentes aprovadas — temas parecidos ganham o aviso "⚠ similar a post anterior" antes da aprovação.</p>
+        <div class="feat-tags"><span class="tag">embeddings</span></div>
+      </div>
+
+      <div class="feat">
+        <div class="feat-top"><div class="feat-icon">🎠</div><div class="feat-nome">Carrossel multi-slide</div></div>
+        <p class="feat-desc">Escreva "carrossel" no briefing e a proposta vem com 3–5 slides de conteúdo além da capa. Cada slide mantém o layout e o fundo da arte; o export gera um ZIP com todos os PNGs + legenda.</p>
+        <div class="feat-tags"><span class="tag tag--novo">novo</span><span class="tag tag--rota">GET /arte/carrossel.zip</span></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══ Edição e formatos ══ -->
+  <div class="secao">
+    <div class="secao-titulo">Edição e formatos</div>
+    <div class="grid">
+
+      <div class="feat">
+        <div class="feat-top"><div class="feat-icon">🖊</div><div class="feat-nome">Editor visual inline</div></div>
+        <p class="feat-desc">Cada arte abre num editor no navegador: posição e zoom do fundo, tamanhos de texto, título e palavras de destaque editáveis, subtítulo com quebras de linha. Tudo persiste no banco e regenera o thumbnail.</p>
+        <div class="feat-tags"><span class="tag">state.json</span><span class="tag">render dinâmico</span></div>
+      </div>
+
+      <div class="feat">
+        <div class="feat-top"><div class="feat-icon">🖼</div><div class="feat-nome">Versões de imagem</div></div>
+        <p class="feat-desc">"Mudar imagem" guarda cada geração num histórico navegável (v1, v2, v3…) — dá para voltar a qualquer versão anterior com um clique, ou variar a cena atual mantendo a composição (seed fixo).</p>
+        <div class="feat-tags"><span class="tag">img-versoes/</span><span class="tag">variar c/ seed</span></div>
+      </div>
+
+      <div class="feat">
+        <div class="feat-top"><div class="feat-icon">📱</div><div class="feat-nome">Export Story 9:16</div></div>
+        <p class="feat-desc">Qualquer arte vira Story 1080×1920 com rediagramação real (o layout se redistribui na proporção nova, com safe areas do Instagram) ou modo frame com fundo desfocado.</p>
+        <div class="feat-tags"><span class="tag tag--rota">GET /api/story.png</span><span class="tag">stretch · frame</span></div>
+      </div>
+
+      <div class="feat">
+        <div class="feat-top"><div class="feat-icon">⬇</div><div class="feat-nome">Exports em lote</div></div>
+        <p class="feat-desc">PNG 2x direto do editor, HTML standalone da arte, ZIP do acervo completo por cliente (thumbs + fundos + legendas organizados por mês).</p>
+        <div class="feat-tags"><span class="tag tag--rota">GET /exportar-zip</span></div>
+      </div>
+
+      <div class="feat">
+        <div class="feat-top"><div class="feat-icon">🎬</div><div class="feat-nome">Motion System</div></div>
+        <p class="feat-desc">Artes estáticas ganham animações HTML/GSAP com presets de movimento, versões comparáveis lado a lado e render final em MP4 via HyperFrames — pronto para Reels.</p>
+        <div class="feat-tags"><span class="tag">GSAP</span><span class="tag">MP4</span><span class="tag tag--rota">/api/motion/*</span></div>
+      </div>
+
+      <div class="feat">
+        <div class="feat-top"><div class="feat-icon">⎘</div><div class="feat-nome">Duplicar e remixar</div></div>
+        <p class="feat-desc">Duplique qualquer arte para reaproveitar a copy com imagem nova (ou vice-versa) sem refazer o pipeline do zero.</p>
+        <div class="feat-tags"><span class="tag tag--rota">POST /arte/duplicar</span></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══ Publicação e automação ══ -->
+  <div class="secao">
+    <div class="secao-titulo">Publicação e automação</div>
+    <div class="grid">
+
+      <div class="feat">
+        <div class="feat-top"><div class="feat-icon">⏰</div><div class="feat-nome">Publicação agendada</div></div>
+        <p class="feat-desc">Defina data e hora na arte e o agendador publica sozinho (verificação a cada 60s), invalidando caches e disparando as notificações.</p>
+        <div class="feat-tags"><span class="tag">publicar_em</span><span class="tag">tick 60s</span></div>
+      </div>
+
+      <div class="feat">
+        <div class="feat-top"><div class="feat-icon">📸</div><div class="feat-nome">Instagram de verdade</div></div>
+        <p class="feat-desc">Com a Graph API configurada, a publicação agendada vai direto para o feed do Instagram — container, processamento e publish automáticos, com o media id gravado no banco.</p>
+        <div class="feat-tags"><span class="tag tag--novo">novo</span><span class="tag tag--env">IG_USER_ID · IG_ACCESS_TOKEN · IG_PUBLIC_BASE_URL</span></div>
+      </div>
+
+      <div class="feat">
+        <div class="feat-top"><div class="feat-icon">🤖</div><div class="feat-nome">Aprovação pelo Telegram</div></div>
+        <p class="feat-desc">Cada lote de propostas chega no seu chat com botões ✅ 1/2/3 e ❌ — aprovar do celular gera a arte e o bot devolve o thumbnail pronto. O Studio fica opcional no dia a dia.</p>
+        <div class="feat-tags"><span class="tag tag--novo">novo</span><span class="tag tag--env">TELEGRAM_BOT_TOKEN · TELEGRAM_CHAT_ID</span></div>
+      </div>
+
+      <a class="feat" href="/calendario/">
+        <div class="feat-top"><div class="feat-icon">⚡</div><div class="feat-nome">Autopilot editorial</div></div>
+        <p class="feat-desc">A IA planeja pautas para os próximos dias por cliente e o sistema dispara os pedidos sozinho quando a data chega — combinado com o Telegram, o ciclo inteiro roda com você só aprovando.</p>
+        <div class="feat-tags"><span class="tag tag--novo">novo</span><span class="tag">plano-editorial.json</span></div>
+        <span class="abrir">Abrir calendário →</span>
+      </a>
+
+      <a class="feat" href="/calendario/">
+        <div class="feat-top"><div class="feat-icon">📅</div><div class="feat-nome">Calendário editorial</div></div>
+        <p class="feat-desc">Visão mensal de todos os clientes com estados ● publicado, ◔ agendado, ○ rascunho e ◇ pauta planejada. Cada chip abre a arte na galeria do cliente.</p>
+        <div class="feat-tags"><span class="tag tag--rota">/calendario/</span></div>
+        <span class="abrir">Abrir calendário →</span>
+      </a>
+
+      <div class="feat">
+        <div class="feat-top"><div class="feat-icon">📨</div><div class="feat-nome">Notificação de publicação</div></div>
+        <p class="feat-desc">Toda auto-publicação envia o thumbnail + legenda para o seu Telegram — você sabe na hora o que foi ao ar.</p>
+        <div class="feat-tags"><span class="tag">sendPhoto</span></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══ Plataforma ══ -->
+  <div class="secao">
+    <div class="secao-titulo">Plataforma</div>
+    <div class="grid">
+
+      <div class="feat">
+        <div class="feat-top"><div class="feat-icon">🏢</div><div class="feat-nome">Multi-cliente dinâmico</div></div>
+        <p class="feat-desc">FEST, CAST e quantos clientes quiser — cada um com identidade visual própria (cores, fontes, logo), agente estrategista com pilares editoriais e banco de artes isolado.</p>
+        <div class="feat-tags"><span class="tag">_clients.json</span><span class="tag">hot-reload</span></div>
+      </div>
+
+      <div class="feat">
+        <div class="feat-top"><div class="feat-icon">＋</div><div class="feat-nome">Onboarding por briefing</div></div>
+        <p class="feat-desc">O card "＋ Novo cliente" na home cria um cliente completo em ~2 minutos: a IA gera a identidade, os prompts de imagem, o system prompt do estrategista, a galeria e o banco — sem reiniciar o servidor.</p>
+        <div class="feat-tags"><span class="tag tag--rota">POST /api/clientes/criar</span></div>
+      </div>
+
+      <div class="feat">
+        <div class="feat-top"><div class="feat-icon">🔎</div><div class="feat-nome">Busca global</div></div>
+        <p class="feat-desc">Busca por headline, subtítulo ou tema em todos os bancos de todos os clientes de uma vez.</p>
+        <div class="feat-tags"><span class="tag tag--rota">GET /api/search?q=</span></div>
+      </div>
+
+      <a class="feat" href="/api/stats" target="_blank" rel="noopener">
+        <div class="feat-top"><div class="feat-icon">📊</div><div class="feat-nome">Custo e saúde da geração</div></div>
+        <p class="feat-desc">Cada chamada de IA é registrada: modelo usado, latência, custo estimado em USD e falhas. Os agregados mostram qual gerador está atendendo e quanto o conteúdo custa de verdade.</p>
+        <div class="feat-tags"><span class="tag tag--novo">novo</span><span class="tag tag--rota">GET /api/stats</span></div>
+        <span class="abrir">Ver stats (JSON) →</span>
+      </a>
+
+      <div class="feat">
+        <div class="feat-top"><div class="feat-icon">🛡</div><div class="feat-nome">Robustez operacional</div></div>
+        <p class="feat-desc">Writes atômicos em todos os bancos JSON, locks por arte contra gerações paralelas, retry com validação de qualidade de imagem, caches com invalidação automática e export estático para produção.</p>
+        <div class="feat-tags"><span class="tag">atomic-write</span><span class="tag">locks</span></div>
+      </div>
+
+      <div class="feat">
+        <div class="feat-top"><div class="feat-icon">🧩</div><div class="feat-nome">Templates e padrões</div></div>
+        <p class="feat-desc">Galeria de templates por layout: ajustes salvos num template viram o padrão daquele layout para as próximas artes.</p>
+        <div class="feat-tags"><span class="tag tag--rota">/galeria-templates</span></div>
+      </div>
+
+    </div>
+  </div>
+</main>
+
+<footer>
+  DevOps Bootcamp Studio · pipeline editorial &copy; 2026 · <a href="/" style="color:#9ca3af">← voltar ao Studio</a>
+</footer>
+
+</body>
+</html>
