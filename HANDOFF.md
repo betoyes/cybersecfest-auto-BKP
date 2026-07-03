@@ -21,89 +21,15 @@
 - **Onboarding via UI** — card "＋ Novo cliente" na home → `POST /api/clientes/criar`; home renderiza cards de `_clients.json` dinamicamente
 
 **Correções de fluxo:**
-- Título editado no editor persiste no banco também no FEST (gotcha 15 resolvido)
+- Título editado no editor persiste no banco também no FEST (antes era edição visual apenas)
 - Toggle "Marcar publicada" do CAST não exige mais `state`
-- **Rotação de layouts manda na aprovação** (gotcha 25): LLM não dita layout; pools por cliente via `brand.js` → `rotacaoLayouts`; prompts da Sunny usam zonas de exclusão canônicas (`getLayoutImageRules`)
+- **Rotação de layouts manda na aprovação** (gotcha 23 do CLAUDE.md): LLM não dita layout; pools por cliente via `brand.js` → `rotacaoLayouts`; prompts da Sunny usam zonas de exclusão canônicas (`getLayoutImageRules`)
 - **Pedido simplificado**: galerias = caixa de briefing única; tipo inferido do texto (`utils/inferir-tipo.js`), vazio = calendário; selects de tipo/objetivo e checkbox "Forçar" removidos
 - UX: toasts (`assets/toast.js`) no lugar de alert(), nav cruzada FEST↔CAST↔Sunny↔📅, home com card de cliente dinâmico
 
-### 28 jun 2026 — 9 melhorias Plano-2 + configuração de tokens
+### Sessões anteriores (jun 2026 e antes)
 
-**`_scripts/utils/client-router.js`:**
-- `handleCalendario` — rota `GET /api/{slug}/temas/calendario` (Fase 1)
-- `handleSalvarArte` — aceita `publicado: bool` sem `state`; persiste `publicado` + `publicado_em` (Fase 6)
-- `_getArteEmbeddings(artes)` — cache 60s para embeddings das artes; invalida em `writeArtes` (Fase 4)
-- `_gerarImagem` — valida qualidade (< 50KB) com 1 retry automático (Fase 8)
-- Thumbnails fire-and-forget em criar/duplicar/aprovar; await mantido em salvar/reaplicar (Fase 3)
-- `handleExportarZip` inclui `arte.html` (Fase 5)
-
-**`_scripts/routes/cast.js`:**
-- `handleFestArteHtmlDynamic` — renderização dinâmica de artes FEST (elimina gotcha 16) (Fase 2)
-- Thumbnails fire-and-forget em criar/duplicar (Fase 3)
-- `handleCastExportarZip` inclui `arte.html` (Fase 5)
-
-**`_scripts/dev-server.js`:**
-- Intercepta `/artes/(evento|blog|patrocinador|palestrante)-*/arte.html` antes do serveStatic (Fase 2)
-
-**`_scripts/utils/similaridade.js`:**
-- `marcarSimilares` aceita 4º arg `arteEmbeddingsPrecomputed` (Fase 4)
-
-**`_scripts/utils/llm.js`:**
-- `validateImageQuality(imgBuffer)` exportada — check tamanho mínimo (Fase 8)
-
-**`_brands/sunnysystems/imagem-prompt.js`:**
-- `LAYOUT_COMPOSITION_HINTS` A/B/C/D/G/H/J/M/N injetados no prompt (Fase 9)
-
-**`sunnysystems/index.html` + `cast/index.html`:**
-- Filtro "Só publicadas" + badge ✓ no card + botão toggle no modal (Fase 6)
-- `#modal-seed-wrap` + `loadSeedFromState` + `copySeed` (Fase 7)
-
-**`.claude/settings.json`** (novo):
-- `ECC_DISABLED_HOOKS` desabilita GateGuard para este projeto
-- Permissões: npm test, lsof :8765, curl localhost, mcp headroom
-
-Ver `PLANO-MELHORIAS-2.md` para especificação completa das 9 fases.
-
----
-
-### 28 jun 2026 — 12 melhorias + porte Sunny Systems
-
-**Novos módulos:**
-- `_scripts/utils/similaridade.js` — cosine similarity via embeddings `text-embedding-3-small`
-
-**`_scripts/utils/llm.js`** — 3 novas funções exportadas:
-- `generateImageGptImage1WithSeed(prompt, seed?)` — variação controlada; retorna `{ buffer, seed }`
-- `getEmbedding(input)` — embedding de texto ou array
-- `detectSubjectPosition(imgBuffer)` — posição do sujeito via `gpt-4o-mini` vision; retorna `left|center|right|abstract`
-
-**`_scripts/utils/editor-v3-script.js` / `editor-wrap.js`** — editor agora genérico:
-- `editorV3Script(slug, { saveUrl, previewUrl })` — URLs injetadas, não mais hardcoded por produto
-- Headline, subtítulo e `palavras_azuis` sempre no payload de save (antes condicionados a `isCast`)
-
-**`_scripts/utils/client-router.js`** — reescrito com todas as melhorias portadas do CAST:
-- `handleExportarZip`, `handleDuplicarArte`, `handlePreview` (novos handlers)
-- `handleMudarImagem` suporta `variar: true` com seed; `handleSalvarArte` persiste `palavras_azuis`
-- `handlePedido` com feedback loop (últimas 5 artes) + similaridade + campo `cena_visual`
-- `handleAprovarProposta` / `handleCriarArte` com `_detectSmartBgPos` automático
-- Lock por slug via `_setBusy/_clearBusy`; `configureLock()` exportado
-- `buildArteHtml(arteSlug, arte, bgPosOverride?)` — suporta override de posição inicial
-- `previewUrl: /api/{slug}/arte/preview` injetado no editor
-
-**Novas rotas (todos os clientes dinâmicos via `client-router.js`):**
-```
-POST /api/{slug}/arte/preview      → read-only, sem escrita em disco
-POST /api/{slug}/arte/duplicar     → copia fundo.png + state.json, gera novo thumb
-GET  /api/{slug}/exportar-zip      → ZIP com thumb.png + fundo.png + artes.json
-```
-
-**`sunnysystems/index.html`:** botão Variar + Duplicar, chip de similaridade  
-**`assets/css/gallery.css`:** `.modal-img-variar-btn`, `.prop-similar`  
-**`_scripts/gerar-propostas-cast.js`:** feedback loop + similaridade para CAST  
-**`_scripts/routes/cast.js`:** ZIP, duplicar, seed+variar, smartBgPos, lock por slug
-
-Ver `PLANO-MELHORIAS.md` para tabela completa de fases e arquivos.
-
----
+Histórico completo: `git log`.
 
 ---
 

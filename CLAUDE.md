@@ -132,43 +132,39 @@ Sem pessoas por padrão — `detectPerson()` ativa cenas com pessoa apenas se no
 
 6. **Export PNG espaço preto** — `domtoimage.toPng(el, {width, height})` NÃO faz scale automático. Usar `style: { transform: 'scale(N)', transformOrigin: 'top left' }` onde `N = exportW / el.offsetWidth`.
 
-7. **Badge LAYOUT A** — removido do `normalizeCanvas` (só existe o CSS rule agora). Se aparecer de novo, verificar se o server está com o código antigo em cache.
+7. **Ghost text em motion** — usar `fundo-raw.png` (foto sem texto). `thumb.png` tem texto baked. `motion-gerador.js` já prioriza fundo-raw > fundo > thumb.
 
-8. **Ghost text em motion** — usar `fundo-raw.png` (foto sem texto). `thumb.png` tem texto baked. `motion-gerador.js` já prioriza fundo-raw > fundo > thumb.
+8. **`artes-cast.json` e `writeArtesCast()`** — cache de 10s em `routes/cast.js` (`castArtesCache`). Após write, cache atualizado imediatamente. `invalidateArtesCast()` força releitura.
 
-9. **`artes-cast.json` e `writeArtesCast()`** — cache de 10s em `routes/cast.js` (`castArtesCache`). Após write, cache atualizado imediatamente. `invalidateArtesCast()` força releitura.
+9. **Back URL no editor CAST** — `wrapWithEditor` recebe `back: '../../cast/'` via `buildArteHtmlCast`. Sem isso aponta para a galeria FEST.
 
-10. **Back URL no editor CAST** — `wrapWithEditor` recebe `back: '../../cast/'` via `buildArteHtmlCast`. Sem isso aponta para a galeria FEST.
+10. **Back URL no editor FEST** — `wrapWithEditor` recebe `back: '/fest/'` em `handleFestReaplicar`. O path `/fest/` é absoluto porque a galeria FEST está em `/fest/`, não na raiz.
 
-11. **Back URL no editor FEST** — `wrapWithEditor` recebe `back: '/fest/'` em `handleFestReaplicar`. O path `/fest/` é absoluto porque a galeria FEST está em `/fest/`, não na raiz.
+11. **`wrapWithEditor` precisa de `layout: arte.layout`** — sem ele, `resolveLayoutCss` não injeta o CSS correto e classes como `.art-content-e`, `.art-bg-e`, `.center-e` ficam sem CSS → conteúdo invisível nos thumbnails. Chamada correta: `wrapWithEditor(simpleHtml, { slug, layout: arte.layout, save: '...', back: '...' })`.
 
-12. **Layout CSS perdido em `handleFestReaplicar`** — `wrapWithEditor` precisa receber `layout: arte.layout` para que `resolveLayoutCss` injete o CSS correto. Sem ele, classes como `.art-content-e`, `.art-bg-e`, `.center-e` ficam sem CSS → conteúdo invisível nos thumbnails. Correção em `dev-server.js`: `wrapWithEditor(simpleHtml, { slug, layout: arte.layout, save: '...', back: '/fest/' })`.
+12. **`resolveLayoutCss` não reconhece layouts com sufixo `-e`** — a função checa `/\.(hl|ct|bc|bb|lc)\{/` para validar CSS extraída do HTML, mas layouts novos usam `.headline-e{`, `.center-e{`. O fallback correto é `getLayoutCss(layout)`, que só funciona se `layout` for passado (ver gotcha 11).
 
-13. **`resolveLayoutCss` não reconhece layouts com sufixo `-e`** — a função checa `/\.(hl|ct|bc|bb|lc)\{/` para validar CSS extraída do HTML, mas layouts novos usam `.headline-e{`, `.center-e{`. O fallback correto é `getLayoutCss(layout)`, que só funciona se `layout` for passado (ver gotcha 12).
+13. **Título editável no editor** — painel direito seção TÍTULO tem `hlEdit` (textarea, texto + `\n`→`<br>`) e `hlBlue` (input, palavras azuis separadas por espaço/vírgula). Cor de destaque: FEST `#14A8F4`, CAST `#6366f1` (variável `ACCENT` em `editor-v3-script.js`). O save envia `headline`/`palavras_azuis`/`subtitle` e todos os backends persistem no banco (FEST em `handleSalvarArte` do dev-server; CAST em `handleCastSalvarArte`; dinâmicos no `client-router`).
 
-14. **`gerarThumbComposto` suporta URL HTTP** — aceita `http://localhost:8765/...` além de paths de arquivo. Em `handleFestReaplicar`, passar a URL do servidor (`http://localhost:8765/artes/${slug}/arte.html`) garante que o HTML completo (com CSS de layout já injetado) seja renderizado corretamente pelo Puppeteer.
+14. **FEST `arte.html` é dinâmico** — `handleFestArteHtmlDynamic` em `routes/cast.js` intercepta `GET /artes/(evento|blog|patrocinador|palestrante)-*/arte.html` antes do `serveStatic`. Mudanças em `editor-wrap.js` ou `editor-v3-script.js` refletem automaticamente, igual ao CAST. Artes sem `fundo.png` (legado) ainda servem o arquivo estático em disco — editar o `arte.html` em disco das dinâmicas não tem efeito.
 
-15. **Título editável no editor** — painel direito seção TÍTULO tem `hlEdit` (textarea, texto + `\n`→`<br>`) e `hlBlue` (input, palavras azuis separadas por espaço/vírgula). Cor de destaque: FEST `#14A8F4`, CAST `#6366f1` (variável `ACCENT` em `editor-v3-script.js`). O save envia `headline`/`palavras_azuis`/`subtitle` e todos os backends persistem no banco (FEST em `handleSalvarArte` do dev-server; CAST em `handleCastSalvarArte`; dinâmicos no `client-router`).
+15. **Multi-cliente dinâmico** — novos clientes são onboardados via `node _scripts/onboarding-cliente.js --briefing briefing.json`. Isso gera `_brands/{slug}/`, `_agents/{slug}-estrategista/`, galeria `{slug}/index.html`, banco `artes-{slug}.json` e registra em `_clients.json`. O `dev-server.js` carrega `_clients.json` no startup via `loadClients()` e despacha todas as rotas do cliente automaticamente via `dispatchClient()` (`_scripts/utils/client-router.js`). Para adicionar um cliente: rodar onboarding → reiniciar servidor.
 
-16. **FEST `arte.html` agora é dinâmico** — `handleFestArteHtmlDynamic` em `routes/cast.js` intercepta `GET /artes/(evento|blog|patrocinador|palestrante)-*/arte.html` antes do `serveStatic`. Mudanças em `editor-wrap.js` ou `editor-v3-script.js` refletem automaticamente, igual ao CAST. Artes sem `fundo.png` (legado) ainda servem o arquivo estático em disco.
+16. **`brand.js` de clientes dinâmicos usa formato flat** — exporta as propriedades diretamente (`module.exports = { id, name, colors, fonts, ... }`), sem wrapper `{ brand: {...} }`. O `ClientRouter` detecta isso com `brandMod.id && brandMod.colors ? brandMod : null`. Se o brand não carregar, as artes renderizam com a identidade do FEST.
 
-17. **Multi-cliente dinâmico** — novos clientes são onboardados via `node _scripts/onboarding-cliente.js --briefing briefing.json`. Isso gera `_brands/{slug}/`, `_agents/{slug}-estrategista/`, galeria `{slug}/index.html`, banco `artes-{slug}.json` e registra em `_clients.json`. O `dev-server.js` carrega `_clients.json` no startup via `loadClients()` e despacha todas as rotas do cliente automaticamente via `dispatchClient()` (`_scripts/utils/client-router.js`). Para adicionar um cliente: rodar onboarding → reiniciar servidor.
+17. **Logos de clientes precisam estar em `assets/`** — `assetDataUri()` em `embed-assets.js` busca assets relativos à raiz do projeto (`assets/`). Logos de clientes devem ser copiados para lá, não mantidos só em `_brands/{slug}/` ou em `Cybersec.CAST-Website/`.
 
-18. **`brand.js` de clientes dinâmicos usa formato flat** — exporta as propriedades diretamente (`module.exports = { id, name, colors, fonts, ... }`), sem wrapper `{ brand: {...} }`. O `ClientRouter` detecta isso com `brandMod.id && brandMod.colors ? brandMod : null`. Se o brand não carregar, as artes renderizam com a identidade do FEST.
+18. **`getSystemPromptFn` por cliente** — carregado no construtor de `ClientRouter` via `require('_agents/{slug}-estrategista/system-prompt.js')`. Deve exportar `getSystemPrompt(tipo)` que recebe o pilar editorial e retorna o system prompt correto. Se o módulo não exportar essa função, `this.getSystemPromptFn = null` e `/api/{slug}/pedido` retorna 400.
 
-19. **`logo-sunny.png` precisa estar em `assets/`** — `assetDataUri()` em `embed-assets.js` busca assets relativos à raiz do projeto (`assets/`). Logos de clientes devem ser copiados para lá, não mantidos só em `_brands/{slug}/` ou em `Cybersec.CAST-Website/`.
+19. **Contaminação de marca no Gemini** — quando OpenAI falha, o fallback para Gemini 2.0 Flash usa `config: { systemInstruction: systemPrompt }` (não concatenação). Se isso não for respeitado, o Gemini gera conteúdo de outra marca (ex: "CYBERSEC.CAST" em posts da Sunny Systems) por associação do treino. O `system-prompt.js` de cada cliente deve ter bloco explícito "EMPRESA EXCLUSIVA: NUNCA mencione [outras marcas]".
 
-20. **`getSystemPromptFn` por cliente** — carregado no construtor de `ClientRouter` via `require('_agents/{slug}-estrategista/system-prompt.js')`. Deve exportar `getSystemPrompt(tipo)` que recebe o pilar editorial e retorna o system prompt correto. Se o módulo não exportar essa função, `this.getSystemPromptFn = null` e `/api/{slug}/pedido` retorna 400.
+20. **`const API` no HTML de galeria de clientes** — cada galeria (`sunnysystems/index.html`, etc.) tem `const API = '/api/{slug}'`. Se clonada do CAST sem trocar esse valor, todos os pedidos vão para `/api/cast` e o conteúdo gerado é do CAST, não do cliente.
 
-21. **Contaminação de marca no Gemini** — quando OpenAI falha, o fallback para Gemini 2.0 Flash usa `config: { systemInstruction: systemPrompt }` (não concatenação). Se isso não for respeitado, o Gemini gera conteúdo de outra marca (ex: "CYBERSEC.CAST" em posts da Sunny Systems) por associação do treino. O `system-prompt.js` de cada cliente deve ter bloco explícito "EMPRESA EXCLUSIVA: NUNCA mencione [outras marcas]".
+21. **Imagem gerada sem contexto** — `buildImagemPrompt` recebe `contexto_visual` (campo do usuário), `cena_visual` (gerada pelo LLM na proposta) e `headline`/`subtitulo`/`tipo`. Prioridade: `instrucao` > `contexto_visual` > `cena_visual` > metáfora derivada de `headline + tema` > `TEMA_SCENE[tipo]`. Em `handleAprovarProposta`, `contexto_visual` deve incluir `proposta.cena_visual` como fallback.
 
-22. **`const API` no HTML de galeria de clientes** — cada galeria (`sunnysystems/index.html`, etc.) tem `const API = '/api/{slug}'`. Se clonada do CAST sem trocar esse valor, todos os pedidos vão para `/api/cast` e o conteúdo gerado é do CAST, não do cliente.
+22. **`_gerarImagem` deve receber o objeto `arte` completo** — assinatura: `_gerarImagem(arte, instrucao)`. O objeto `arte` deve ter `tipo`, `layout`, `headline`, `subtitulo`, `contexto_visual`, `tema` para que `buildImagemPrompt` consiga montar cena contextual. Nunca chamar com `(contextoVisual, tipo, headline)` como args posicionais separados.
 
-23. **Imagem gerada sem contexto** — `buildImagemPrompt` recebe `contexto_visual` (campo do usuário), `cena_visual` (gerada pelo LLM na proposta) e `headline`/`subtitulo`/`tipo`. Prioridade: `instrucao` > `contexto_visual` > `cena_visual` > metáfora derivada de `headline + tema` > `TEMA_SCENE[tipo]`. Em `handleAprovarProposta`, `contexto_visual` deve incluir `proposta.cena_visual` como fallback.
-
-24. **`_gerarImagem` deve receber o objeto `arte` completo** — assinatura: `_gerarImagem(arte, instrucao)`. O objeto `arte` deve ter `tipo`, `layout`, `headline`, `subtitulo`, `contexto_visual`, `tema` para que `buildImagemPrompt` consiga montar cena contextual. Nunca chamar com `(contextoVisual, tipo, headline)` como args posicionais separados.
-
-25. **Rotação de layouts manda na aprovação** — `handleAprovarProposta` (client-router) e o pipeline CAST usam `pickNextLayout`/`pickCastLayout`; a sugestão de layout do LLM é apenas informativa. Override só com `body.layout` explícito (A–Q). Pool por cliente: `rotacaoLayouts` no `brand.js` (`{ default: [...] }` ou por tipo); sem ele vale `GENERIC_LAYOUT_POOL` (C/E/F/M/N/L).
+23. **Rotação de layouts manda na aprovação** — `handleAprovarProposta` (client-router) e o pipeline CAST usam `pickNextLayout`/`pickCastLayout`; a sugestão de layout do LLM é apenas informativa. Override só com `body.layout` explícito (A–Q). Pool por cliente: `rotacaoLayouts` no `brand.js` (`{ default: [...] }` ou por tipo); sem ele vale `GENERIC_LAYOUT_POOL` (C/E/F/M/N/L).
 
 ---
 
