@@ -246,7 +246,7 @@ GET  /artes/cast-*/arte.html             → renderização dinâmica (intercept
 | Marca | Fundo | Destaque | Headline | Corpo |
 |-------|-------|----------|----------|-------|
 | FEST | `#02050A` | `#14A8F4` (ciano) | Ubuntu Bold | Montserrat |
-| CAST | `#07060f` | `#6366f1` (índigo) | Space Mono | Inter |
+| CAST | `#07060f` | `#6366f1` (índigo) | Space Grotesk | Montserrat |
 | Sunny Systems | `#0f0f0f` | `#FBB414` (âmbar) | Space Grotesk | Inter |
 
 Logos parceiros FEST/CAST: DevOps Bootcamp, IAM Tech Day, Alcatraz Security.  

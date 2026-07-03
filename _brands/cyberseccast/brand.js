@@ -5,11 +5,11 @@
  * Podcast executivo de cibersegurança — identidade visual independente do CybersecFEST.
  *
  * CybersecFEST  →  #14A8F4 (cyan)  | Ubuntu Bold / Montserrat | #02050A bg
- * CYBERSEC.CAST →  #6366f1 (indigo) | Space Grotesk / Inter / Space Mono | #07060f bg
+ * CYBERSEC.CAST →  #6366f1 (indigo) | Space Grotesk / Montserrat / Space Mono | #07060f bg
  *
- * Font hierarchy (mirrors real CAST website tailwind.config):
+ * Font hierarchy:
  *   display / headlines → Space Grotesk (bold, uppercase)
- *   body / subtitle     → Inter
+ *   body / subtitle     → Montserrat (compartilhada com o FEST — decisão 03 jul 2026; antes era Inter)
  *   tags / eyebrow      → Space Mono (mono uppercase tracking)
  */
 
@@ -43,11 +43,11 @@ const BRAND = {
   fonts: {
     display: 'Space Grotesk',
     display_weight: 700,
-    body: 'Inter',
+    body: 'Montserrat',
     body_weight: 400,
     mono: 'Space Mono',
     mono_weight: 400,
-    google_fonts_url: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700;800&family=Space+Mono:wght@400;700&display=swap',
+    google_fonts_url: 'https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Space+Grotesk:wght@600;700;800&family=Space+Mono:wght@400;700&display=swap',
   },
 
   /**
@@ -57,15 +57,15 @@ const BRAND = {
    *
    * Mapeamento de fontes (layouts.js usa):
    *   Ubuntu Bold → headlines (.headline, .quote-open, .quote-close)
-   *   Montserrat w400 → subtitle body (.subtitle)
-   *   Montserrat w600 → spotlight/eyebrow tags (.sp)
-   *   Montserrat w700 → small uppercase tags (.tag-h, .tag-i, etc.)
+   *   Montserrat w400 → subtitle body (.subtitle) — MANTIDA no CAST (corpo compartilhado com FEST)
+   *   Montserrat w600 → spotlight/eyebrow tags (.sp) → Space Mono
+   *   Montserrat w700 → small uppercase tags (.tag-h, .tag-i, etc.) → Space Mono
    */
   token_replacements: [
-    // Google Fonts URL → inclui as 3 fontes CAST
+    // Google Fonts URL → fontes CAST (Montserrat corpo + Space Grotesk + Space Mono)
     [
       'https://fonts.googleapis.com/css2?family=Ubuntu:wght@700&family=Montserrat:wght@400;600&display=swap',
-      'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700;800&family=Space+Mono:wght@400;700&display=swap',
+      'https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Space+Grotesk:wght@600;700;800&family=Space+Mono:wght@400;700&display=swap',
     ],
     // rgba acento CybersecFEST (#14A8F4) → CAST indigo (#6366f1)
     ['rgba(20,168,244,', 'rgba(99,102,241,'],
@@ -76,8 +76,7 @@ const BRAND = {
     ['#02050A', '#07060f'],
     ['#02050a', '#07060f'],
     // ── Fontes: substituições específicas (ordem importa) ──
-    // Montserrat w400 (subtitle body) → Inter
-    ["'Montserrat',sans-serif;font-weight:400", "'Inter',sans-serif;font-weight:400"],
+    // Montserrat w400 (subtitle body) fica Montserrat — corpo compartilhado, sem replacement
     // Montserrat w600 (sp/eyebrow tags, uppercase) → Space Mono
     ["'Montserrat',sans-serif;font-weight:600", "'Space Mono',monospace;font-weight:400"],
     // Montserrat w700 (tiny uppercase tags) → Space Mono
@@ -86,9 +85,6 @@ const BRAND = {
     ["'Ubuntu',sans-serif", "'Space Grotesk',sans-serif"],
     ["'Ubuntu'", "'Space Grotesk'"],
     ['Ubuntu', 'Space Grotesk'],
-    // Fallback: qualquer Montserrat restante → Inter
-    ["'Montserrat'", "'Inter'"],
-    ['Montserrat', 'Inter'],
   ],
 
   // Ref para image prompt
