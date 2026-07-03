@@ -518,8 +518,18 @@ class ClientRouter {
     try {
       const body = await readBody(req);
       const tema = (body && body.tema || '').trim();
-      const tipo = (body && body.tipo || 'autoridade').trim();
       if (!tema) return json(res, 400, { ok: false, erro: 'tema obrigatório' });
+
+      // Tipo: explícito > inferido do briefing > tipo do dia (tipo_por_dia do brand)
+      let tipo = (body && body.tipo || '').trim();
+      if (!tipo) {
+        let tpd = {};
+        try { tpd = require(path.join(ROOT, '_brands', this.slug, 'brand.js')).tipo_por_dia || {}; } catch { /* sem brand */ }
+        const tipos = [...new Set(Object.entries(tpd).filter(([k]) => k !== 'default').map(([, v]) => v))];
+        const doDia = tpd[new Date().getDay()] || tpd.default || tipos[0] || 'autoridade';
+        const { inferirTipo } = require('./inferir-tipo.js');
+        tipo = tipos.length > 1 ? await inferirTipo(tema, tipos, doDia) : doDia;
+      }
       if (!this.getSystemPromptFn) return json(res, 400, { ok: false, erro: 'agente estrategista não configurado' });
 
       const artesRecentes = this.readArtes().slice(0, 10);

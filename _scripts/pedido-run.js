@@ -82,9 +82,14 @@ RETORNE EXATAMENTE neste formato JSON (sem markdown, apenas JSON puro):
 async function executarPedido(opts = {}) {
   const objetivo = opts.objetivo || 'audiencia';
   const override = process.env.TIPO_POST_OVERRIDE;
-  const tipoPost = opts.tipoPost || override || (() => {
-    const brt = new Date(Date.now() - 3 * 60 * 60 * 1000);
-    return tipoPostDoDia(brt);
+  // Tipo: explícito > override > inferido do briefing livre > calendário do dia
+  const tipoPost = opts.tipoPost || override || await (async () => {
+    const brt   = new Date(Date.now() - 3 * 60 * 60 * 1000);
+    const doDia = tipoPostDoDia(brt);
+    const briefingLivre = String(opts.tema || opts.temaLivre || opts.briefing || '').trim();
+    if (!briefingLivre) return doDia;
+    const { inferirTipo } = require('./utils/inferir-tipo.js');
+    return inferirTipo(briefingLivre, ['blog', 'evento', 'palestrante', 'patrocinador', 'cidade'], doDia);
   })();
 
   const temasFile = await getJSON('temas.json');

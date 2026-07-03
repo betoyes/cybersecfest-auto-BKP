@@ -117,7 +117,7 @@ if (location.protocol === 'file:') {
 }
 </script>
 <script src="/assets/toast.js"></script>
-<style>.card-date-badge{background:rgba(2,5,10,.72) !important;padding:3px 8px !important;border-radius:6px;}</style>
+<style>.card-date-badge{background:rgba(2,5,10,.72) !important;padding:3px 8px !important;border-radius:6px;} .cal-slot{display:none !important;}</style>
 </head>
 <body>
 
@@ -174,14 +174,9 @@ if (location.protocol === 'file:') {
     <button class="pedido-btn" id="pedido-btn" type="button" title="Gerar post" aria-label="Gerar post">✦</button>
   </div>
   <div class="pedido-objetivo-row" style="margin-top:6px;">
-    <select id="pedido-tipo" class="pedido-objetivo-select" title="Tipo de post">
-      <option value="">Tipo automático</option>
-      <option value="episodio">Episódio</option>
-      <option value="convidado">Convidado</option>
-      <option value="insight">Insight</option>
-    </select>
+    
     <label style="color:#a5b4fc;font-size:11px;white-space:nowrap;cursor:pointer;margin-left:8px;" title="Força novas propostas mesmo com banco cheio">
-      <input type="checkbox" id="pedido-forcar" style="margin-right:3px;">Forçar
+      
     </label>
   </div>
   <div class="pedido-status" id="pedido-status"></div>

@@ -117,7 +117,7 @@ if (location.protocol === 'file:') {
 }
 </script>
 <script src="/assets/toast.js"></script>
-<style>.card-date-badge{background:rgba(2,5,10,.72) !important;padding:3px 8px !important;border-radius:6px;}</style>
+<style>.card-date-badge{background:rgba(2,5,10,.72) !important;padding:3px 8px !important;border-radius:6px;} .cal-slot{display:none !important;}</style>
 </head>
 <body>
 
@@ -165,16 +165,7 @@ if (location.protocol === 'file:') {
     <button class="pedido-btn" id="pedido-btn" type="button" title="Gerar propostas" aria-label="Gerar propostas">✦</button>
   </div>
   <div class="pedido-objetivo-row" style="margin-top:6px;">
-    <select id="pedido-tipo" class="pedido-objetivo-select" title="Tipo de conteúdo">
-      <option value="autoridade">Autoridade técnica</option>
-      <option value="observabilidade">Observabilidade</option>
-      <option value="finops">FinOps / Custos</option>
-      <option value="platform_engineering">Platform Engineering</option>
-      <option value="ia">IA na Engenharia</option>
-      <option value="produto">Produto</option>
-      <option value="devsecops">DevSecOps</option>
-      <option value="comunidade">Comunidade / Evento</option>
-    </select>
+    
   </div>
   <div class="pedido-status" id="pedido-status"></div>
   <div class="pedido-pending" id="pedido-pending" hidden>
@@ -1048,7 +1039,7 @@ function initPedidoPanel() {
 
   async function submitPedido() {
     const tema = document.getElementById('pedido-tema').value.trim();
-    const tipo = document.getElementById('pedido-tipo')?.value || 'autoridade';
+    const tipo = '';
 
     btn.disabled = true;
     btn.textContent = '⏳';

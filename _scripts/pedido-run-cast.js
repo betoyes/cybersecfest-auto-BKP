@@ -39,7 +39,19 @@ function lerTemasCast() {
  * 3. Senão → gera 3 propostas (fase 1)
  */
 async function executarPedidoCast(opts = {}) {
-  const tipoPost = opts.tipoPost || tipoPostDoDia(new Date(Date.now() - 3 * 60 * 60 * 1000));
+  // Tipo: explícito > inferido do briefing > calendário do dia
+  const tipoPost = opts.tipoPost || await (async () => {
+    const doDia = tipoPostDoDia(new Date(Date.now() - 3 * 60 * 60 * 1000));
+    const briefingLivre = String(opts.tema || opts.temaLivre || '').trim();
+    if (!briefingLivre) return doDia;
+    let tipos = [];
+    try {
+      const tpd = require('../_brands/cyberseccast/brand.js').tipo_por_dia || {};
+      tipos = [...new Set(Object.entries(tpd).filter(([k]) => k !== 'default').map(([, v]) => v))];
+    } catch { /* usa fallback */ }
+    const { inferirTipo } = require('./utils/inferir-tipo.js');
+    return inferirTipo(briefingLivre, tipos.length > 1 ? tipos : ['episodio', 'convidado', 'insight'], doDia);
+  })();
   const objetivo = opts.objetivo || 'audiencia';
   const temas    = lerTemasCast();
 

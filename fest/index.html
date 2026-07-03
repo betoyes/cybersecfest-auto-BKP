@@ -23,7 +23,7 @@ if (location.protocol === 'file:') {
 }
 </script>
 <script src="/assets/toast.js"></script>
-<style>.card-date-badge{background:rgba(2,5,10,.72) !important;padding:3px 8px !important;border-radius:6px;}</style>
+<style>.card-date-badge{background:rgba(2,5,10,.72) !important;padding:3px 8px !important;border-radius:6px;} .cal-slot{display:none !important;}</style>
 </head>
 <body>
 
@@ -83,14 +83,9 @@ if (location.protocol === 'file:') {
       <option value="patrocinadores">💼 Captação de Patrocinadores</option>
       <option value="convite">🎟️ Convite Institucional</option>
     </select>
-    <select id="pedido-tipo" class="pedido-objetivo-select" title="Tipo de post" style="flex:1;background:#111;color:#e2e8f0;border:1px solid #334155;border-radius:6px;padding:5px 8px;font-size:12px;">
-      <option value="">Tipo automático</option>
-      <option value="blog">Blog / Insight</option>
-      <option value="evento">Evento</option>
-      <option value="patrocinador">Patrocinador</option>
-    </select>
+    
     <label style="color:#64748b;font-size:11px;white-space:nowrap;cursor:pointer;" title="Força novas propostas mesmo com banco cheio">
-      <input type="checkbox" id="pedido-forcar" style="margin-right:3px;">Forçar
+      
     </label>
   </div>
   <div class="pedido-status" id="pedido-status"></div>
