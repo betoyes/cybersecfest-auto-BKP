@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>Calendário Editorial — Studio</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #02050A; color: #e5e7eb; min-height: 100vh;
+    font-family: 'Inter', -apple-system, 'Segoe UI', sans-serif; padding: 24px;
+  }
+  .top { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+  .top a.back { color: #6b7280; text-decoration: none; font-size: 14px; }
+  .top a.back:hover { color: #e5e7eb; }
+  h1 { font-size: 20px; font-weight: 700; }
+  .nav { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+  .nav button {
+    background: #0d1420; border: 1px solid #1f2937; color: #e5e7eb;
+    padding: 6px 14px; border-radius: 8px; cursor: pointer; font-size: 14px;
+  }
+  .nav button:hover { border-color: #374151; }
+  .nav .mes { font-size: 16px; font-weight: 600; min-width: 170px; text-align: center; text-transform: capitalize; }
+  .legenda { display: flex; gap: 14px; font-size: 12px; color: #9ca3af; margin-bottom: 14px; flex-wrap: wrap; }
+  .legenda .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; }
+  .grid {
+    display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px;
+  }
+  .dow { font-size: 11px; color: #6b7280; text-transform: uppercase; padding: 4px 6px; letter-spacing: 0.06em; }
+  .dia {
+    background: #0a0f18; border: 1px solid #141c2a; border-radius: 10px;
+    min-height: 92px; padding: 6px; font-size: 12px; overflow: hidden;
+  }
+  .dia.fora { opacity: 0.35; }
+  .dia.hoje { border-color: #14A8F4; }
+  .dia .num { color: #6b7280; font-size: 11px; margin-bottom: 4px; }
+  .dia.hoje .num { color: #14A8F4; font-weight: 700; }
+  .chip {
+    display: block; width: 100%; text-align: left; margin-bottom: 3px; padding: 3px 6px;
+    border-radius: 6px; font-size: 10.5px; line-height: 1.25; cursor: pointer;
+    border: 1px solid transparent; color: #fff; background: #1f2937;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-decoration: none;
+  }
+  .chip.agendado { background: transparent; }
+  .chip.rascunho { opacity: 0.45; }
+  .stats { margin-top: 16px; font-size: 12px; color: #6b7280; }
+</style>
+</head>
+<body>
+  <div class="top">
+    <a class="back" href="/">← Studio</a>
+    <h1>📅 Calendário Editorial</h1>
+    <div class="nav">
+      <button onclick="mudarMes(-1)">‹</button>
+      <div class="mes" id="mes-label"></div>
+      <button onclick="mudarMes(1)">›</button>
+      <button onclick="irHoje()">Hoje</button>
+    </div>
+  </div>
+  <div class="legenda" id="legenda"></div>
+  <div class="grid" id="grid"></div>
+  <div class="stats" id="stats"></div>
+
+<script>
+const CORES = { fest: '#14A8F4', cast: '#6366f1', sunnysystems: '#FBB414' };
+const GALERIA = { fest: '/fest/', cast: '/cast/' };
+const DOW = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+let artes = [];
+let ref = new Date();
+
+function corCliente(c) { return CORES[c] || '#9ca3af'; }
+function galeriaCliente(c) { return GALERIA[c] || `/${c}/`; }
+
+// Data de exibição: publicado → publicado_em; agendado → publicar_em; rascunho → criado_em
+function dataArte(a) {
+  const iso = a.publicado ? (a.publicado_em || a.criado_em) : (a.publicar_em || a.criado_em);
+  return iso ? iso.slice(0, 10) : null;
+}
+function estadoArte(a) {
+  if (a.publicado) return 'publicado';
+  if (a.publicar_em) return 'agendado';
+  return 'rascunho';
+}
+function ymd(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function render() {
+  const ano = ref.getFullYear(), mes = ref.getMonth();
+  document.getElementById('mes-label').textContent =
+    ref.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+
+  const porDia = {};
+  for (const a of artes) {
+    const d = dataArte(a);
+    if (d) (porDia[d] = porDia[d] || []).push(a);
+  }
+
+  const primeiro = new Date(ano, mes, 1);
+  const inicio = new Date(primeiro);
+  inicio.setDate(1 - primeiro.getDay());
+  const hoje = ymd(new Date());
+
+  let html = DOW.map(d => `<div class="dow">${d}</div>`).join('');
+  const cursor = new Date(inicio);
+  for (let i = 0; i < 42; i++) {
+    const key = ymd(cursor);
+    const fora = cursor.getMonth() !== mes;
+    const doDia = porDia[key] || [];
+    const chips = doDia.map(a => {
+      const cor = corCliente(a.cliente);
+      const st  = estadoArte(a);
+      const estilo = st === 'agendado'
+        ? `border-color:${cor};color:${cor}`
+        : `background:${cor}22;border-color:${cor}55;color:#fff`;
+      const icone = st === 'publicado' ? '●' : st === 'agendado' ? '◔' : '○';
+      return `<a class="chip ${st}" style="${estilo}" href="${galeriaCliente(a.cliente)}"
+        title="[${a.cliente}] ${a.headline} — ${st}">${icone} ${a.headline || a.slug}</a>`;
+    }).join('');
+    html += `<div class="dia${fora ? ' fora' : ''}${key === hoje ? ' hoje' : ''}">
+      <div class="num">${cursor.getDate()}</div>${chips}</div>`;
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  document.getElementById('grid').innerHTML = html;
+
+  const noMes = artes.filter(a => (dataArte(a) || '').slice(0, 7) === `${ano}-${String(mes + 1).padStart(2, '0')}`);
+  const pub = noMes.filter(a => estadoArte(a) === 'publicado').length;
+  const ag  = noMes.filter(a => estadoArte(a) === 'agendado').length;
+  document.getElementById('stats').textContent =
+    `${noMes.length} artes neste mês — ${pub} publicadas, ${ag} agendadas, ${noMes.length - pub - ag} rascunhos. Clique numa arte para abrir a galeria do cliente.`;
+}
+
+function renderLegenda() {
+  const clientes = [...new Set(artes.map(a => a.cliente))];
+  document.getElementById('legenda').innerHTML =
+    clientes.map(c => `<span><span class="dot" style="background:${corCliente(c)}"></span>${c}</span>`).join('') +
+    `<span style="margin-left:12px">● publicado &nbsp; ◔ agendado &nbsp; ○ rascunho</span>`;
+}
+
+function mudarMes(delta) { ref = new Date(ref.getFullYear(), ref.getMonth() + delta, 1); render(); }
+function irHoje() { ref = new Date(); render(); }
+
+async function init() {
+  try {
+    const r = await fetch('/api/calendario').then(r => r.json());
+    if (!r.ok) throw new Error(r.erro || 'Falha ao carregar calendário');
+    artes = r.artes;
+    renderLegenda();
+    render();
+  } catch (e) {
+    document.getElementById('grid').innerHTML = `<div style="grid-column:1/-1;color:#f87171">Erro: ${e.message}</div>`;
+  }
+}
+init();
+</script>
+</body>
+</html>

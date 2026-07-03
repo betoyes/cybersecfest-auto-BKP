@@ -17,6 +17,7 @@ const { generateImage } = require('./utils/llm.js');
 const { buildImagePrompt, validateLayout } = require('./utils/imagem-prompt.js');
 const { renderLayout } = require('./utils/layouts.js');
 const { wrapWithEditor } = require('./utils/editor-wrap.js');
+const { atomicWriteFileSync } = require('./utils/atomic-write.js');
 
 const ROOT = path.join(__dirname, '..');
 const PORT = Number(process.env.PORT || 8765);
@@ -244,6 +245,22 @@ async function handleSalvarArte(req, res) {
     const updated = upsertEditorState(html, state);
     fs.writeFileSync(artePath, updated);
 
+    // Persistir textos editados no banco (templates não fazem parte de artes.json)
+    const subtitleRaw = typeof payload.subtitle       === 'string' ? payload.subtitle       : null;
+    const headlineRaw = typeof payload.headline       === 'string' ? payload.headline       : null;
+    const palavrasRaw = typeof payload.palavras_azuis === 'string' ? payload.palavras_azuis : null;
+    if (!isTemplate && (subtitleRaw !== null || headlineRaw !== null || palavrasRaw !== null)) {
+      const artes = readArtes();
+      const idx   = artes.findIndex(a => a.slug === slug);
+      if (idx >= 0) {
+        if (subtitleRaw !== null) artes[idx].subtitulo      = subtitleRaw;
+        if (headlineRaw !== null) artes[idx].headline       = headlineRaw;
+        if (palavrasRaw !== null) artes[idx].palavras_azuis = palavrasRaw;
+        atomicWriteFileSync(path.join(ROOT, 'artes.json'), JSON.stringify(artes, null, 2) + '\n');
+        invalidateArtes();
+      }
+    }
+
     let thumbOk = false;
     let thumbAviso = null;
     try {
@@ -276,6 +293,54 @@ async function handleSalvarArte(req, res) {
     json(res, 500, { ok: false, erro: e.message });
   } finally {
     clearBusy();
+  }
+}
+
+// POST /api/clientes/criar — onboarding de cliente novo a partir de briefing JSON.
+// Executa onboarding-cliente.js (gera _brands/, _agents/, galeria, banco) e
+// o fs.watch de _clients.json recarrega as rotas automaticamente.
+async function handleCriarCliente(req, res) {
+  if (!setBusy(res, '__onboarding')) return;
+  try {
+    const briefing = await readBody(req);
+    if (!briefing) return json(res, 400, { ok: false, erro: 'JSON inválido' });
+
+    const slug = String(briefing.slug || '').trim().toLowerCase();
+    const nome = String(briefing.nome || '').trim();
+    if (!slug || !nome) return json(res, 400, { ok: false, erro: 'slug e nome são obrigatórios' });
+    if (!/^[a-z0-9-]{2,30}$/.test(slug)) {
+      return json(res, 400, { ok: false, erro: 'slug inválido — use apenas letras minúsculas, números e hífen (2-30 chars)' });
+    }
+    if (['fest', 'cast', 'api', 'artes', 'assets', 'calendario'].includes(slug)) {
+      return json(res, 400, { ok: false, erro: `slug reservado: ${slug}` });
+    }
+    if (fs.existsSync(path.join(ROOT, '_brands', slug))) {
+      return json(res, 409, { ok: false, erro: `Cliente já existe: ${slug}` });
+    }
+
+    const os = require('os');
+    const tmpBriefing = path.join(os.tmpdir(), `briefing-${slug}-${Date.now()}.json`);
+    fs.writeFileSync(tmpBriefing, JSON.stringify({ ...briefing, slug, nome }, null, 2));
+
+    log.info(`Onboarding iniciado: ${nome} (${slug})`);
+    const { execFile } = require('child_process');
+    const saida = await new Promise((resolve, reject) => {
+      execFile('node', ['onboarding-cliente.js', '--briefing', tmpBriefing],
+        { cwd: __dirname, timeout: 5 * 60 * 1000, maxBuffer: 4 * 1024 * 1024 },
+        (err, stdout, stderr) => {
+          fs.unlink(tmpBriefing, () => {});
+          if (err) return reject(new Error(`onboarding falhou: ${err.message}\n${(stderr || stdout || '').slice(-800)}`));
+          resolve(stdout);
+        });
+    });
+
+    log.info(`Onboarding concluído: ${slug}`);
+    json(res, 200, { ok: true, slug, galeria: `/${slug}/`, log: saida.split('\n').slice(-12).join('\n') });
+  } catch (e) {
+    log.error('Criar cliente:', e.message);
+    json(res, 500, { ok: false, erro: e.message });
+  } finally {
+    clearBusy('__onboarding');
   }
 }
 
@@ -694,6 +759,47 @@ const server = http.createServer((req, res) => {
     }
 
     return json(res, 200, { ok: true, total: resultados.length, resultados });
+  }
+
+  // ── Onboarding de cliente pela UI ──────────────────────────────
+  if (req.method === 'POST' && urlPath === '/api/clientes/criar') return handleCriarCliente(req, res);
+
+  // ── Calendário editorial: todas as artes de todos os clientes ──
+  if (req.method === 'GET' && urlPath === '/api/calendario') {
+    let dinamicos = [];
+    try {
+      dinamicos = JSON.parse(fs.readFileSync(path.join(ROOT, '_clients.json'), 'utf8'))
+        .filter(c => c.ativo)
+        .map(c => ({ slug: c.slug, banco: path.join(ROOT, `artes-${c.slug}.json`) }));
+    } catch { /* sem clientes dinâmicos */ }
+
+    const clientes = [
+      { slug: 'fest', banco: path.join(ROOT, 'artes.json') },
+      { slug: 'cast', banco: path.join(ROOT, 'artes-cast.json') },
+      ...dinamicos,
+    ];
+
+    const artes = [];
+    for (const { slug, banco } of clientes) {
+      if (!fs.existsSync(banco)) continue;
+      try {
+        for (const a of JSON.parse(fs.readFileSync(banco, 'utf8'))) {
+          artes.push({
+            cliente:      slug,
+            slug:         a.slug,
+            headline:     (a.headline || '').replace(/<br\s*\/?>/gi, ' '),
+            tipo:         a.tipo || a.tipo_post || '',
+            criado_em:    a.criadoEm || a.created_at || null,
+            publicado:    a.publicado === true,
+            publicado_em: a.publicado_em || null,
+            publicar_em:  a.publicar_em || null,
+            thumb:        `/artes/${a.slug}/thumb.png`,
+          });
+        }
+      } catch { /* banco corrompido ou ausente */ }
+    }
+
+    return json(res, 200, { ok: true, total: artes.length, artes });
   }
 
   // ── Clientes dinâmicos (/api/{slug}/*, /{slug}/, /artes/{slug}-*/) ──────────

@@ -145,7 +145,7 @@ Sem pessoas por padrão — `detectPerson()` ativa cenas com pessoa apenas se no
 
 14. **`gerarThumbComposto` suporta URL HTTP** — aceita `http://localhost:8765/...` além de paths de arquivo. Em `handleFestReaplicar`, passar a URL do servidor (`http://localhost:8765/artes/${slug}/arte.html`) garante que o HTML completo (com CSS de layout já injetado) seja renderizado corretamente pelo Puppeteer.
 
-15. **Título editável no editor** — painel direito seção TÍTULO tem `hlEdit` (textarea, texto + `\n`→`<br>`) e `hlBlue` (input, palavras azuis separadas por espaço/vírgula). Cor de destaque: FEST `#14A8F4`, CAST `#6366f1` (variável `ACCENT` em `editor-v3-script.js`). Edição é visual apenas por enquanto — não persiste no `state.json`.
+15. **Título editável no editor** — painel direito seção TÍTULO tem `hlEdit` (textarea, texto + `\n`→`<br>`) e `hlBlue` (input, palavras azuis separadas por espaço/vírgula). Cor de destaque: FEST `#14A8F4`, CAST `#6366f1` (variável `ACCENT` em `editor-v3-script.js`). O save envia `headline`/`palavras_azuis`/`subtitle` e todos os backends persistem no banco (FEST em `handleSalvarArte` do dev-server; CAST em `handleCastSalvarArte`; dinâmicos no `client-router`).
 
 16. **FEST `arte.html` agora é dinâmico** — `handleFestArteHtmlDynamic` em `routes/cast.js` intercepta `GET /artes/(evento|blog|patrocinador|palestrante)-*/arte.html` antes do `serveStatic`. Mudanças em `editor-wrap.js` ou `editor-v3-script.js` refletem automaticamente, igual ao CAST. Artes sem `fundo.png` (legado) ainda servem o arquivo estático em disco.
 
@@ -188,7 +188,12 @@ Mesmo padrão se aplica a qualquer cliente em `_clients.json` substituindo `sunn
 
 ```
 GET  /api/search?q=texto                 → busca em todos os bancos artes-*.json (cliente, slug, headline, tipo, thumb)
+GET  /api/calendario                     → todas as artes de todos os clientes (datas, estado publicação) — alimenta /calendario/
+POST /api/clientes/criar                 → onboarding via UI: briefing JSON → spawn onboarding-cliente.js (lock global, timeout 5min)
+GET  /calendario/                        → calendário editorial mensal multi-cliente (chips por marca, estados ●◔○)
 ```
+
+**Telegram (opcional):** se `TELEGRAM_BOT_TOKEN` e `TELEGRAM_CHAT_ID` estiverem no `_scripts/.env`, o agendador envia o thumb + legenda via bot quando auto-publica. Sem as vars é no-op silencioso (`notificarTelegram` em `agendador.js`).
 
 **Publicação agendada:** `POST /api/{cast|slug}/arte/salvar` aceita `{ slug, publicar_em: ISO|null }` (sem `state`). O agendador (`utils/agendador.js`, intervalo 60s no dev-server) publica automaticamente quando a data chega e invalida os caches. Toggle manual: `{ slug, publicado: bool }`.
 

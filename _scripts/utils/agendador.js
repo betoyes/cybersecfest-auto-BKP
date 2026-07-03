@@ -41,11 +41,41 @@ function verificarAgendamentos(bancos = bancosDisponiveis()) {
       arte.publicar_em  = null;
       console.log(`✅ Agendador: auto-publicou ${arte.slug} (${path.basename(banco)})`);
       publicadas++;
+      notificarTelegram(arte).catch(e => console.warn('⚠️  Telegram:', e.message));
     }
     atomicWriteFileSync(banco, JSON.stringify(artes, null, 2) + '\n');
   }
 
   return publicadas;
+}
+
+// Envia a arte publicada via Telegram (PNG + legenda) — no-op se as env vars não existirem.
+// Requer TELEGRAM_BOT_TOKEN e TELEGRAM_CHAT_ID no _scripts/.env
+async function notificarTelegram(arte) {
+  const token  = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_CHAT_ID;
+  if (!token || !chatId) return;
+
+  const headline = (arte.headline || arte.slug).replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '');
+  const caption  = `🚀 Publicado agora: ${headline}\n\n${arte.legenda || ''}`.slice(0, 1024);
+  const thumbPath = path.join(ROOT, 'artes', arte.slug, 'thumb.png');
+
+  if (fs.existsSync(thumbPath)) {
+    const form = new FormData();
+    form.append('chat_id', chatId);
+    form.append('caption', caption);
+    form.append('photo', new Blob([fs.readFileSync(thumbPath)], { type: 'image/png' }), 'arte.png');
+    const r = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: 'POST', body: form });
+    if (!r.ok) throw new Error(`sendPhoto ${r.status}`);
+  } else {
+    const r = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text: caption }),
+    });
+    if (!r.ok) throw new Error(`sendMessage ${r.status}`);
+  }
+  console.log(`📨 Telegram: notificação enviada para ${arte.slug}`);
 }
 
 // onChange: chamado quando alguma arte foi publicada (ex.: invalidar caches do servidor)
@@ -60,4 +90,4 @@ function iniciarAgendador(onChange = null) {
   return timer;
 }
 
-module.exports = { verificarAgendamentos, iniciarAgendador, INTERVALO_MS };
+module.exports = { verificarAgendamentos, iniciarAgendador, notificarTelegram, INTERVALO_MS };
