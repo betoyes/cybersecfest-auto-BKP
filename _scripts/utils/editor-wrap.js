@@ -356,7 +356,9 @@ ${stateBlock}${metaBlock}<script>${editorV3Script(slug, { saveUrl, previewUrl })
 
 function wrapWithEditor(simpleHtml, { layout, headline, slug, editorState: stateOverride = null, back: backOverride = null, formato = DEFAULT_FORMATO, palavrasAzuis = '', save = null, previewUrl = '' }) {
   const layoutN = LAYOUT_NAMES[layout] || layout;
-  const title   = (headline || 'Arte CybersecFEST').replace(/"/g, '&quot;').slice(0, 80);
+  const title   = (headline || 'Arte CybersecFEST')
+    .replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim()
+    .replace(/"/g, '&quot;').slice(0, 80);
   const isTemplate = /^template-[a-q]$/i.test(String(slug || ''));
   const back    = backOverride
     || (isTemplate ? '../../index.html' : `../../index.html#arte=${slug}`);

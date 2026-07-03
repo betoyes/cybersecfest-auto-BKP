@@ -22,6 +22,8 @@ if (location.protocol === 'file:') {
   document.documentElement.classList.add('file-protocol');
 }
 </script>
+<script src="/assets/toast.js"></script>
+<style>.card-date-badge{background:rgba(2,5,10,.72) !important;padding:3px 8px !important;border-radius:6px;}</style>
 </head>
 <body>
 
@@ -54,6 +56,10 @@ if (location.protocol === 'file:') {
     <a href="/galeria-templates/index.html" class="nav-link" title="Validação A–Q">Templates</a>
     <a href="/galeria-templates/comparar.html" class="nav-link" title="Comparar layouts">Comparar</a>
     <a href="/layouts-diagramacao.html" class="nav-link" title="Mapa de diagramação A–Q">Diagramação</a>
+    <span class="nav-divider" aria-hidden="true"></span>
+    <a href="/cast/" class="nav-link" title="CyberSec.CAST">CAST</a>
+    <a href="/sunnysystems/" class="nav-link" title="Sunny Systems">Sunny</a>
+    <a href="/calendario/" class="nav-link" title="Calendário editorial">📅</a>
     <span class="nav-divider" aria-hidden="true"></span>
     <span class="nav-year">2026</span>
   </nav>
@@ -533,7 +539,7 @@ async function deleteModalMotionVersion(versionId) {
     renderModalVersionBar();
     updateModalMp4DownloadLink();
   } catch (e) {
-    alert(e.message || 'Não foi possível excluir');
+    toast(e.message || 'Não foi possível excluir');
   }
 }
 
@@ -597,7 +603,7 @@ async function approveModalMotionMp4() {
     mp4Btn.textContent = 'Render?';
     setTimeout(() => { mp4Btn.textContent = origLabel; }, 2500);
   }
-  alert(
+  toast(
     'MP4 ainda não renderizado para esta versão.\n\n' +
     'Comando copiado:\n' + prompt + '\n\n' +
     'Depois de renderizar, clique ↓ MP4 novamente.',
@@ -647,7 +653,7 @@ async function updateModalMp4DownloadLink() {
     try {
       await MotionVersions.downloadVersionMp4(link.href, link.download);
     } catch (err) {
-      alert(err.message || 'Falha ao baixar MP4');
+      toast(err.message || 'Falha ao baixar MP4');
     }
   };
 }
@@ -1202,7 +1208,7 @@ async function downloadArtePNG(slug, btn) {
     console.warn('Erro na captura:', e);
     // Fallback elegante: abre arte em janela pequena
     const w = window.open(`/artes/${slug}/arte.html`, '_blank', 'width=620,height=820,left=200,top=80');
-    if (!w) alert('Permita popups para esta página e tente novamente.');
+    if (!w) toast('Permita popups para esta página e tente novamente.');
   } finally {
     document.body.removeChild(tempIframe);
     btn.innerHTML = original;
@@ -1257,7 +1263,7 @@ async function deletarArte(slug) {
     const msg = /405|method not allowed|desatualizado/i.test(e.message)
       ? 'Servidor desatualizado — pare o terminal e reinicie:\ncd _scripts && npm run dev'
       : e.message;
-    alert(msg);
+    toast(msg);
     if (btn) { btn.disabled = false; btn.textContent = '🗑 Excluir'; }
   }
 }
@@ -1856,7 +1862,7 @@ function initPropostasUI() {
       await loadPropostasEstado();
       openModalBySlug(data.slug);
     } catch (e) {
-      alert(e.message);
+      toast(e.message);
     } finally {
       btn.disabled = false;
     }
@@ -1894,5 +1900,6 @@ document.addEventListener('keydown', e => {
   }
 });
 </script>
+<script>(function(){var p=new URLSearchParams(location.search).get("arte");if(!p)return;var t=0,i=setInterval(function(){t++;if(window.arteMap&&arteMap[p]){clearInterval(i);openModalBySlug(p);}else if(t>40)clearInterval(i);},250);})();</script>
 </body>
 </html>

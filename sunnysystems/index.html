@@ -116,6 +116,8 @@ if (location.protocol === 'file:') {
   document.documentElement.classList.add('file-protocol');
 }
 </script>
+<script src="/assets/toast.js"></script>
+<style>.card-date-badge{background:rgba(2,5,10,.72) !important;padding:3px 8px !important;border-radius:6px;}</style>
 </head>
 <body>
 
@@ -146,6 +148,7 @@ if (location.protocol === 'file:') {
     <a href="/cast/" class="nav-link" title="CybersecCAST">CAST</a>
     <span class="nav-divider" aria-hidden="true"></span>
     <a href="/fest/" class="nav-link" title="CybersecFEST">FEST</a>
+    <a href="/calendario/" class="nav-link" title="Calendário editorial">📅</a>
   </nav>
 </header>
 
@@ -889,7 +892,7 @@ async function downloadArtePNG(slug, btn) {
   } catch(e) {
     console.warn('Erro na captura:', e);
     const w = window.open(`/artes/${slug}/arte.html`, '_blank', 'width=620,height=820,left=200,top=80');
-    if (!w) alert('Permita popups para esta página e tente novamente.');
+    if (!w) toast('Permita popups para esta página e tente novamente.');
   } finally {
     document.body.removeChild(tempIframe);
     btn.innerHTML = original;
@@ -941,7 +944,7 @@ async function deletarArte(slug) {
     const msg = /405|method not allowed|desatualizado/i.test(e.message)
       ? 'Servidor desatualizado — pare o terminal e reinicie:\ncd _scripts && npm run dev'
       : e.message;
-    alert(msg);
+    toast(msg);
     if (btn) { btn.disabled = false; btn.textContent = '🗑 Excluir'; }
   }
 }
@@ -1391,7 +1394,7 @@ async function togglePublicado(slug) {
     arte.publicado_em = novoValor ? new Date().toISOString() : null;
     renderGallery();
     openModalBySlug(slug);
-  } catch (e) { alert('Erro ao marcar: ' + e.message); }
+  } catch (e) { toast('Erro ao marcar: ' + e.message); }
 }
 
 async function salvarAgendamento() {
@@ -1404,8 +1407,8 @@ async function salvarAgendamento() {
     if (!r.ok) throw new Error(r.erro || 'Falha');
     const arte = allArtes.find(a => a.slug === modalSlug);
     if (arte) arte.publicar_em = iso;
-    alert(iso ? `Agendado para ${new Date(iso).toLocaleString('pt-BR')}` : 'Agendamento cancelado');
-  } catch (e) { alert('Erro ao agendar: ' + e.message); }
+    toast(iso ? `Agendado para ${new Date(iso).toLocaleString('pt-BR')}` : 'Agendamento cancelado');
+  } catch (e) { toast('Erro ao agendar: ' + e.message); }
 }
 
 function initGalleryFilters() {
@@ -1447,7 +1450,7 @@ function initPropostasUI() {
       await loadPropostasEstado();
       openModalBySlug(data.slug);
     } catch (e) {
-      alert(e.message);
+      toast(e.message);
     } finally {
       btn.disabled = false;
     }
@@ -1502,7 +1505,7 @@ async function duplicarArte(slug) {
     await loadArtes();
     openModalBySlug(data.slug);
   } catch (e) {
-    alert('❌ ' + e.message);
+    toast('❌ ' + e.message);
     if (btn) { btn.disabled = false; btn.textContent = '⎘ Duplicar'; }
   }
 }
@@ -1538,5 +1541,6 @@ document.addEventListener('keydown', e => {
   }
 });
 </script>
+<script>(function(){var p=new URLSearchParams(location.search).get("arte");if(!p)return;var t=0,i=setInterval(function(){t++;if(window.arteMap&&arteMap[p]){clearInterval(i);openModalBySlug(p);}else if(t>40)clearInterval(i);},250);})();</script>
 </body>
 </html>

@@ -116,7 +116,7 @@ function render() {
         ? `border-color:${cor};color:${cor}`
         : `background:${cor}22;border-color:${cor}55;color:#fff`;
       const icone = st === 'publicado' ? '●' : st === 'agendado' ? '◔' : '○';
-      return `<a class="chip ${st}" style="${estilo}" href="${galeriaCliente(a.cliente)}"
+      return `<a class="chip ${st}" style="${estilo}" href="${galeriaCliente(a.cliente)}?arte=${encodeURIComponent(a.slug)}"
         title="[${a.cliente}] ${a.headline} — ${st}">${icone} ${a.headline || a.slug}</a>`;
     }).join('');
     html += `<div class="dia${fora ? ' fora' : ''}${key === hoje ? ' hoje' : ''}">
@@ -148,6 +148,13 @@ async function init() {
     if (!r.ok) throw new Error(r.erro || 'Falha ao carregar calendário');
     artes = r.artes;
     renderLegenda();
+    // mês atual vazio → abre no mês mais recente com conteúdo
+    const mesAtual = ymd(new Date()).slice(0, 7);
+    const meses = artes.map(a => (dataArte(a) || '').slice(0, 7)).filter(Boolean).sort();
+    if (meses.length && !meses.includes(mesAtual)) {
+      const alvo = meses[meses.length - 1];
+      ref = new Date(Number(alvo.slice(0, 4)), Number(alvo.slice(5, 7)) - 1, 1);
+    }
     render();
   } catch (e) {
     document.getElementById('grid').innerHTML = `<div style="grid-column:1/-1;color:#f87171">Erro: ${e.message}</div>`;

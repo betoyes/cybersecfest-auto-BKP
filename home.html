@@ -290,7 +290,7 @@
     </a>
 
     <!-- Novo cliente -->
-    <a class="card" href="#" onclick="abrirOnboarding(); return false;" style="border-style:dashed;">
+    <a class="card" id="card-novo-cliente" href="#" onclick="abrirOnboarding(); return false;" style="border-style:dashed;">
       <span class="card-badge badge--new"><span class="badge-dot"></span>Onboarding</span>
       <div>
         <div class="card-name">＋ Novo cliente</div>
@@ -348,6 +348,36 @@
 </style>
 
 <script>
+// Cards dinâmicos: clientes de _clients.json que não têm card fixo na home
+(async function () {
+  const FIXOS = ['fest', 'cast', 'sunnysystems'];
+  try {
+    const [clients, cal] = await Promise.all([
+      fetch('/_clients.json').then(r => r.json()).catch(() => []),
+      fetch('/api/calendario').then(r => r.json()).catch(() => ({ artes: [] })),
+    ]);
+    const counts = {};
+    for (const a of (cal.artes || [])) counts[a.cliente] = (counts[a.cliente] || 0) + 1;
+
+    const grid = document.querySelector('.grid');
+    const novo = document.getElementById('card-novo-cliente');
+    for (const c of clients.filter(c => c.ativo && !FIXOS.includes(c.slug))) {
+      const el = document.createElement('a');
+      el.className = 'card';
+      el.href = `/${c.slug}/`;
+      el.innerHTML = `
+        <span class="card-badge badge--new"><span class="badge-dot"></span>Cliente</span>
+        <div><div class="card-name">${c.nome}</div></div>
+        <p class="card-desc">Pipeline editorial completo — propostas, artes e publicação.</p>
+        <div class="card-meta">
+          <div class="card-meta-stat"><strong>${counts[c.slug] || 0} artes</strong><span>no acervo</span></div>
+          <div class="card-arrow">→</div>
+        </div>`;
+      grid.insertBefore(el, novo);
+    }
+  } catch (e) { /* home continua com os cards fixos */ }
+})();
+
 function abrirOnboarding() { document.getElementById('onb-overlay').style.display = 'flex'; }
 function fecharOnboarding() { document.getElementById('onb-overlay').style.display = 'none'; }
 function sugerirSlug() {
