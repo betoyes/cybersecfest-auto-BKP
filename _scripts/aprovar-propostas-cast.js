@@ -36,7 +36,10 @@ function propostaParaArtePayload(proposta, tipoPost, opts = {}) {
     propostaId:     proposta.id,
     angulo:         proposta.angulo,
     ctaVisual:      proposta.cta_visual,
-    layoutOverride: layoutSugerido,
+    // layout_sugerido do LLM é apenas informativo — a rotação (pickCastLayout)
+    // decide, para garantir variedade visual sem repetição.
+    layoutOverride: opts.forcarLayout || null,
+    layoutSugeridoLlm: layoutSugerido,
   };
 }
 
@@ -143,7 +146,7 @@ async function consumirBancoCast() {
     propostaId:      item.id,
     angulo:          item.angulo,
     ctaVisual:       item.cta_visual,
-    layoutOverride:  /^[A-Q]$/i.test(item.layout_sugerido || '') ? String(item.layout_sugerido).toUpperCase() : null,
+    layoutOverride:  null, // rotação decide (layout_sugerido do LLM é informativo)
   });
 
   return { ...resultado, fromBanco: true, bancoId: item.id };

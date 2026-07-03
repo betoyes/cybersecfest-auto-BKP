@@ -6,6 +6,11 @@ const { renderLayoutForBrand } = require('./brand-renderer');
 const { wrapWithEditor }       = require('./editor-wrap');
 const { generateText }         = require('./llm');
 const { atomicWriteFileSync }  = require('./atomic-write.js');
+const { pickNextLayout }       = require('./layout-rotacao.js');
+
+// Pool genérico para clientes sem rotacaoLayouts no brand.js — layouts
+// full-bleed que funcionam para qualquer marca (e já têm polish de story).
+const GENERIC_LAYOUT_POOL = ['C', 'E', 'F', 'M', 'N', 'L'];
 
 const ROOT      = path.join(__dirname, '../..');
 const ARTES_TTL = 10_000;
@@ -595,12 +600,24 @@ Regras:
       const contextoVisual = ((body && body.contexto_visual) || proposta.cena_visual || proposta.contexto_visual || '').trim();
       const headlineRaw    = (proposta.headline || '').replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '').trim();
 
+      // Layout: o baralho (rotação sem repetição) decide; a sugestão do LLM
+      // não manda — só um layout explícito no body (forçado pelo usuário).
+      const tipoLote      = this._lote.tipo;
+      const layoutForcado = body && /^[A-Q]$/i.test(body.layout || '') ? String(body.layout).toUpperCase() : null;
+      const brandMod      = (() => { try { return require(path.join(ROOT, '_brands', this.slug, 'brand.js')); } catch { return {}; } })();
+      const pool          = (brandMod.rotacaoLayouts && (brandMod.rotacaoLayouts[tipoLote] || brandMod.rotacaoLayouts.default)) || GENERIC_LAYOUT_POOL;
+      const historico     = this.readArtes().map(a => ({ tipo_post: a.tipo, layout: a.layout }));
+      const { layout: layoutDeck } = pickNextLayout(tipoLote, {
+        rotacaoLayouts: { [tipoLote]: pool },
+        historicoRecente: historico,
+      });
+
       const arteSlug = `${this.slug}-${Date.now()}`;
       const arte = {
         slug:            arteSlug,
         tipo:            this._lote.tipo,
         tema:            this._lote.tema || '',
-        layout:          proposta.layout || 'C',
+        layout:          layoutForcado || layoutDeck,
         headline:        proposta.headline || headlineRaw,
         palavras_azuis:  proposta.palavras_azuis || '',
         subtitulo:       proposta.subtitulo || '',

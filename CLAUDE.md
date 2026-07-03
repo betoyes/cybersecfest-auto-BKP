@@ -165,6 +165,8 @@ Sem pessoas por padrão — `detectPerson()` ativa cenas com pessoa apenas se no
 
 24. **`_gerarImagem` deve receber o objeto `arte` completo** — assinatura: `_gerarImagem(arte, instrucao)`. O objeto `arte` deve ter `tipo`, `layout`, `headline`, `subtitulo`, `contexto_visual`, `tema` para que `buildImagemPrompt` consiga montar cena contextual. Nunca chamar com `(contextoVisual, tipo, headline)` como args posicionais separados.
 
+25. **Rotação de layouts manda na aprovação** — `handleAprovarProposta` (client-router) e o pipeline CAST usam `pickNextLayout`/`pickCastLayout`; a sugestão de layout do LLM é apenas informativa. Override só com `body.layout` explícito (A–Q). Pool por cliente: `rotacaoLayouts` no `brand.js` (`{ default: [...] }` ou por tipo); sem ele vale `GENERIC_LAYOUT_POOL` (C/E/F/M/N/L).
+
 ---
 
 ## Rotas Sunny Systems (client-router genérico)

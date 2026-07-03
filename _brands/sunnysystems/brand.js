@@ -63,6 +63,12 @@ const SUNNYSYSTEMS_BRAND = {
 
   refs_dir: 'assets/referencias-sunny',
 
+  // Pool de layouts — o baralho do client-router sorteia sem repetição.
+  // 'default' vale para todos os tipos; chaves por tipo têm prioridade.
+  rotacaoLayouts: {
+    default: ['C', 'E', 'M', 'N', 'I', 'L'],
+  },
+
   tipo_por_dia: {
     1: 'produto',
     3: 'diferencial',
