@@ -96,9 +96,20 @@ function buildImagemPrompt({ tipo = 'autoridade', layout = 'A', contexto_visual 
     'Output: PURE PHOTOGRAPHY or CINEMATIC ABSTRACT IMAGE — NOT a designed poster, NOT a social graphic with text.',
     '',
     `LAYOUT ${layout} — IMAGE COMPOSITION CONTRACT:`,
-    ...(LAYOUT_COMPOSITION_HINTS[String(layout).toUpperCase()] ? [`• Composition: ${LAYOUT_COMPOSITION_HINTS[String(layout).toUpperCase()]}`] : []),
+    // Zonas de exclusão canônicas do layout (onde o HTML põe texto/logo) —
+    // fonte única em _scripts/utils/imagem-prompt.js, cobre A–Q.
+    ...(() => {
+      try {
+        const { getLayoutImageRules } = require('../../_scripts/utils/imagem-prompt.js');
+        const r = getLayoutImageRules(layout);
+        return [
+          `• Subject placement (MANDATORY): ${r.focusEn}`,
+          ...r.clearZones.map(z => `• CLEAR ZONE: ${z}`),
+        ];
+      } catch { return ['• CLEAR ZONE (text band): top and bottom 20%']; }
+    })(),
+    ...(LAYOUT_COMPOSITION_HINTS[String(layout).toUpperCase()] ? [`• Mood/style of the subject: ${LAYOUT_COMPOSITION_HINTS[String(layout).toUpperCase()]}`] : []),
     '• Visual focus (REQUIRED): technology and operations sophistication',
-    '• CLEAR ZONE (text band): top and bottom 20%',
     '',
     'SCENE (visual content only):',
     scene,
