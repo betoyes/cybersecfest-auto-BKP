@@ -764,6 +764,34 @@ const server = http.createServer((req, res) => {
   // ── Onboarding de cliente pela UI ──────────────────────────────
   if (req.method === 'POST' && urlPath === '/api/clientes/criar') return handleCriarCliente(req, res);
 
+  // ── Export Story 1080×1920 (qualquer cliente) ──────────────────
+  if (req.method === 'GET' && urlPath === '/api/story.png') {
+    const slug = (url.searchParams.get('slug') || '').trim();
+    if (!/^[\w-]+$/.test(slug)) return json(res, 400, { ok: false, erro: 'slug inválido' });
+    if (!fs.existsSync(path.join(ROOT, 'artes', slug))) return json(res, 404, { ok: false, erro: 'arte não encontrada' });
+    if (!setBusy(res, `story-${slug}`)) return;
+    (async () => {
+      try {
+        const { gerarStoryPng } = require('./utils/story-png.js');
+        const out = path.join(ROOT, 'artes', slug, 'story.png');
+        await gerarStoryPng(`http://${HOST}:${PORT}/artes/${slug}/arte.html`, out);
+        res.writeHead(200, {
+          'Content-Type': 'image/png',
+          'Content-Disposition': `attachment; filename="${slug}-story.png"`,
+          'Cache-Control': 'no-store',
+        });
+        res.end(fs.readFileSync(out));
+        log.info(`Story exportado: ${slug} (1080×1920)`);
+      } catch (e) {
+        log.error('Story export:', e.message);
+        json(res, 500, { ok: false, erro: e.message });
+      } finally {
+        clearBusy(`story-${slug}`);
+      }
+    })();
+    return;
+  }
+
   // ── Calendário editorial: todas as artes de todos os clientes ──
   if (req.method === 'GET' && urlPath === '/api/calendario') {
     let dinamicos = [];

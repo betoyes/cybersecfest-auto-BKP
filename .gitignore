@@ -15,6 +15,9 @@ propostas-cast.json
 # Ferramentas locais
 .serena/
 
+# Export derivado (regenerável via GET /api/story.png?slug=)
+artes/**/story.png
+
 # Mídia local não versionada (fora do escopo do site)
 Cybersec.CAST-Website/
 Midia-Kit-Cybersec.FEST-export/

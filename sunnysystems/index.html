@@ -651,6 +651,7 @@ function openModal(slug, arte) {
     <button class="btn-arte btn-arte-primary" onclick="goToEditor('${slug}')">Editor</button>
     <button class="btn-arte btn-arte-secondary" onclick="duplicarArte('${slug}')">⎘ Duplicar</button>
     <button class="btn-arte btn-arte-secondary" onclick="downloadArtePNG('${slug}', this)">↓ PNG</button>
+    <a class="btn-arte btn-arte-secondary" href="/api/story.png?slug=${slug}" title="Exporta 1080×1920 (leva ~5s)">↓ Story</a>
     <a class="btn-arte btn-arte-secondary" href="/artes/${slug}/arte.html" download="cyberseccast_${slug}.html">↓ HTML</a>
     <button type="button" class="btn-arte ${arte.publicado ? 'btn-arte-primary' : 'btn-arte-secondary'}" id="btn-publicado-arte" onclick="togglePublicado('${slug}')">${arte.publicado ? '✓ Publicada' : 'Marcar publicada'}</button>
     ${canDelete ? `<button type="button" class="btn-arte btn-arte-danger" id="btn-delete-arte" onclick="deletarArte('${slug}')">🗑 Excluir</button>` : ''}

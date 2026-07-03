@@ -963,6 +963,7 @@ function openModal(slug, arte) {
   document.getElementById('modal-actions').innerHTML = `
     <button class="btn-arte btn-arte-primary" onclick="goToEditor('${slug}')">Editor</button>
     <button class="btn-arte btn-arte-secondary" onclick="downloadArtePNG('${slug}', this)">↓ PNG</button>
+    <a class="btn-arte btn-arte-secondary" href="/api/story.png?slug=${slug}" title="Exporta 1080×1920 (leva ~5s)">↓ Story</a>
     <a class="btn-arte btn-arte-secondary" href="/artes/${slug}/arte.html" download="cybersecfest_${slug}.html">↓ HTML</a>
     ${canDelete ? `<button type="button" class="btn-arte btn-arte-danger" id="btn-delete-arte" onclick="deletarArte('${slug}')">🗑 Excluir</button>` : ''}
   `;

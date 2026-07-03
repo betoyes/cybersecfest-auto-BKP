@@ -191,7 +191,10 @@ GET  /api/search?q=texto                 → busca em todos os bancos artes-*.js
 GET  /api/calendario                     → todas as artes de todos os clientes (datas, estado publicação) — alimenta /calendario/
 POST /api/clientes/criar                 → onboarding via UI: briefing JSON → spawn onboarding-cliente.js (lock global, timeout 5min)
 GET  /calendario/                        → calendário editorial mensal multi-cliente (chips por marca, estados ●◔○)
+GET  /api/story.png?slug={slug}          → export Story 1080×1920 de qualquer cliente (botão "↓ Story" nas galerias)
 ```
+
+**Story (9:16):** `utils/story-png.js` NÃO estica o canvas (layouts têm posições fixas — quebra). Renderiza a arte 4:5 intacta centralizada num quadro 540×960 com o fundo da própria arte desfocado nas bordas (`blur(38px) brightness(0.45)`), tudo montado via `page.evaluate` no Puppeteer sobre o `arte.html` dinâmico. `story.png` é derivado e está no .gitignore.
 
 **Telegram (opcional):** se `TELEGRAM_BOT_TOKEN` e `TELEGRAM_CHAT_ID` estiverem no `_scripts/.env`, o agendador envia o thumb + legenda via bot quando auto-publica. Sem as vars é no-op silencioso (`notificarTelegram` em `agendador.js`).
 
