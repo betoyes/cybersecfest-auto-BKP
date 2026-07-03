@@ -17,13 +17,22 @@ const { launchBrowser } = require('./puppeteer-browser.js');
 const STRETCH_BASE =
   '#the-canvas,#the-canvas .art-canvas-inner{width:540px !important;height:960px !important;}';
 
-// Refinos por layout no modo stretch (respiro vertical, headline maior).
+// Polish do modo stretch. Safe areas do Instagram: a UI cobre ~250px do topo
+// (avatar/fechar) e ~250px da base (responder) em 1920 → ~112/118px no canvas
+// de 960. Tipografia maior: story é tela cheia, o corpo do feed fica tímido.
+const STORY_POLISH_BASE =
+  '.headline{font-size:38px !important;line-height:1.12 !important;}' +
+  '.subtitle{font-size:14px !important;line-height:1.75 !important;}';
+
+const SAFE_PAD = 'padding-top:112px !important;padding-bottom:118px !important;';
+
 const LAYOUT_POLISH = {
-  A: '.img-band{height:58%;}.text-band{height:45%;}',
-  C: '.art-cnt-c{padding:70px 30px 56px 34px;}.headline-c{font-size:34px;max-width:62%;}.sub-c{font-size:13px;}',
-  E: '.art-content-e{padding:70px 30px 56px 34px;}.center-e{max-width:64%;}.subtitle-e{max-width:280px;}',
-  M: '.art-cnt-m{padding:70px 30px 56px 34px;}.hl-m{font-size:30px;max-width:340px;}.sb-m{font-size:13px;max-width:300px;}',
-  N: '.cnt-l2{padding:70px 30px 56px 34px;}',
+  A: `.img-band{height:57%;}.text-band{height:46%;padding-bottom:118px !important;}`,
+  C: `.art-cnt-c{${SAFE_PAD}}.headline-c{max-width:68%;}`,
+  E: `.art-content-e{${SAFE_PAD}}.center-e{max-width:68%;}.subtitle-e{max-width:310px;}`,
+  F: `.left-col{${SAFE_PAD}}.hl-f{font-size:30px !important;}`,
+  M: `.art-cnt-m{${SAFE_PAD}}.hl-m{max-width:380px;}.sb-m{max-width:330px;}`,
+  N: `.cnt-l2{${SAFE_PAD}}`,
 };
 
 // Layouts que ficam melhores emoldurados (posições fixas que não reflow).
@@ -48,7 +57,7 @@ async function gerarStoryPng(arteUrl, outPath, { layout = '', modo = null } = {}
     let alvo = '#the-canvas';
     if (modoFinal === 'stretch') {
       await page.addStyleTag({
-        content: STRETCH_BASE + (LAYOUT_POLISH[String(layout).toUpperCase()] || ''),
+        content: STRETCH_BASE + STORY_POLISH_BASE + (LAYOUT_POLISH[String(layout).toUpperCase()] || ''),
       });
     } else {
       alvo = '#story-frame';
@@ -89,4 +98,4 @@ async function gerarStoryPng(arteUrl, outPath, { layout = '', modo = null } = {}
   }
 }
 
-module.exports = { gerarStoryPng, LAYOUT_POLISH, FRAME_LAYOUTS };
+module.exports = { gerarStoryPng, STORY_POLISH_BASE, LAYOUT_POLISH, FRAME_LAYOUTS };

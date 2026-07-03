@@ -427,6 +427,8 @@ function applyFormato(id){
   cv.dataset.exportH=String(f.eh);
   cv.style.width=f.w+'px';
   cv.style.height=f.h+'px';
+  var sp=document.getElementById('story-polish');
+  if(sp)sp.media=f.stretch?'all':'not all';
   var inner=cv.querySelector('.art-canvas-inner');
   if(inner){
     if(f.stretch){

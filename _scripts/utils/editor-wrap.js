@@ -295,6 +295,13 @@ function annotateCanvas(inner, layout) {
   return normalizeCanvas(inner, layout);
 }
 
+// CSS de rediagramação Stories (safe areas + tipografia) — desativado via
+// media="not all"; o editor liga trocando para media="all" no applyFormato.
+function storyPolishCss(layout) {
+  const { STORY_POLISH_BASE, LAYOUT_POLISH } = require('./story-png.js');
+  return STORY_POLISH_BASE + (LAYOUT_POLISH[String(layout || '').toUpperCase()] || '');
+}
+
 function buildEditorHtml({ inner, layoutCss, layout, layoutN, title, back, slug, editorState, formato = DEFAULT_FORMATO, palavrasAzuis = '', saveUrl = null, previewUrl = '' }) {
   const css = layoutCss || (layout ? getLayoutCss(layout) : '');
   const stateBlock = editorState
@@ -319,6 +326,7 @@ function buildEditorHtml({ inner, layoutCss, layout, layoutN, title, back, slug,
 <style>${EDITOR_CSS}
 ${css ? `\n/* Layout ${layout} */\n${css}` : ''}
 </style>
+<style id="story-polish" media="not all">${storyPolishCss(layout)}</style>
 <script>if(location.search.includes('embed'))document.documentElement.classList.add('embed');<\/script>
 </head>
 <body>
